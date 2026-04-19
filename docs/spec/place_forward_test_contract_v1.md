@@ -44,8 +44,12 @@ Phase 1 runner implementation は次を source of truth とする。
 - `horse_bet_lab.forward_test.runner`
 - CLI:
   - `python -m horse_bet_lab.forward_test.cli --config <path>`
+- raw/live-ish snapshot bridge:
+  - `horse_bet_lab.forward_test.snapshot_bridge`
+  - `python -m horse_bet_lab.forward_test.snapshot_bridge_cli --config <path>`
 - sample config:
   - `configs/place_forward_test_phase1.sample.toml`
+  - `configs/place_forward_snapshot_bridge.sample.toml`
 - minimal runbook:
   - `docs/runbooks/place_forward_test_phase1_runbook.md`
 

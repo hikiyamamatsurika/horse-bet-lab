@@ -1,0 +1,3 @@
+race_key,horse_number,horse_name,win_odds,popularity,place_odds_min,place_odds_max,place_basis_odds_proxy,snapshot_status,retry_count,timeout_seconds,snapshot_failure_reason
+07263811,1,manual-timeout-probe,,,,,,timeout,3,15,timed out while waiting for final odds snapshot
+07263811,2,manual-missing-odds-probe,,5,,,,required_odds_missing,1,15,required odds missing in raw snapshot input: win_odds, place_basis_odds
