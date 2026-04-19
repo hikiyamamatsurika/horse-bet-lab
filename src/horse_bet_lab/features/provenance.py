@@ -7,6 +7,7 @@ from typing import Any
 from horse_bet_lab.features.registry import (
     DATASET_FEATURE_SET_REGISTRY,
     FEATURE_REGISTRY,
+    FEATURE_MISSING_NULL_POLICY_REGISTRY,
     dataset_feature_columns,
 )
 
@@ -77,6 +78,18 @@ def build_feature_definitions(feature_names: tuple[str, ...]) -> list[dict[str, 
             "timing_class": FEATURE_REGISTRY[feature_name].timing_class,
             "carrier_identity": FEATURE_REGISTRY[feature_name].carrier_identity,
             "leakage_allowed": FEATURE_REGISTRY[feature_name].leakage_allowed,
+            "dataset_null_allowed": FEATURE_MISSING_NULL_POLICY_REGISTRY[
+                feature_name
+            ].dataset_null_allowed,
+            "dataset_null_condition": FEATURE_MISSING_NULL_POLICY_REGISTRY[
+                feature_name
+            ].dataset_null_condition,
+            "model_null_allowed": FEATURE_MISSING_NULL_POLICY_REGISTRY[
+                feature_name
+            ].model_null_allowed,
+            "model_null_condition": FEATURE_MISSING_NULL_POLICY_REGISTRY[
+                feature_name
+            ].model_null_condition,
         }
         for feature_name in feature_names
     ]

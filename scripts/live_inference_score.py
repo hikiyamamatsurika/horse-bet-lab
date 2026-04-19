@@ -14,7 +14,10 @@ import duckdb
 import numpy as np
 
 from horse_bet_lab.features.provenance import build_feature_provenance_payload
-from horse_bet_lab.features.registry import validate_model_feature_columns
+from horse_bet_lab.features.registry import (
+    validate_model_feature_columns,
+    validate_model_feature_missing_values,
+)
 from horse_bet_lab.model.service import (
     apply_feature_transforms,
     fit_model,
@@ -173,6 +176,15 @@ def load_training_matrix(config: ReferenceModelConfig) -> tuple[np.ndarray, np.n
         raise ValueError("no training rows found for configured training_splits")
 
     feature_count = len(config.feature_columns)
+    validate_model_feature_missing_values(
+        config.feature_columns,
+        [row[:feature_count] for row in rows],
+        context="live reference training dataset",
+        row_labels=[
+            f"training_row_index={index}"
+            for index in range(1, len(rows) + 1)
+        ],
+    )
     X_raw = np.array(
         [
             [float(value) for value in row[:feature_count]]
@@ -211,6 +223,25 @@ def load_live_rows(config: LiveInferenceConfig) -> tuple[list[dict[str, str]], n
 
     if not rows:
         raise ValueError("live input CSV has no data rows")
+
+    validate_model_feature_missing_values(
+        config.reference_model.feature_columns,
+        [
+            tuple(
+                row.get(
+                    config.reference_model.live_feature_aliases.get(column_name, column_name),
+                    "",
+                )
+                for column_name in config.reference_model.feature_columns
+            )
+            for row in rows
+        ],
+        context="live input model features",
+        row_labels=[
+            f"race_key={row['race_key']} horse_number={row['horse_number']}"
+            for row in rows
+        ],
+    )
 
     for row in rows:
         validate_live_row_schema(row)

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import duckdb
+import pytest
 
 
 def load_proxy_live_module():
@@ -271,3 +272,29 @@ def test_proxy_live_config_rejects_dataset_only_feature_columns(tmp_path: Path) 
         assert "features not allowed in model parity path" in str(exc)
     else:
         raise AssertionError("expected dataset-only live feature config to be rejected")
+
+
+def test_proxy_live_rejects_missing_model_feature_value_without_imputation(tmp_path: Path) -> None:
+    module = load_proxy_live_module()
+
+    dataset_path = tmp_path / "dataset.parquet"
+    input_path = tmp_path / "input_missing_popularity.csv"
+    output_path = tmp_path / "artifacts" / "scores.csv"
+    config_path = tmp_path / "config.toml"
+    db_path = tmp_path / "historical.duckdb"
+
+    create_training_dataset(dataset_path)
+    create_historical_duckdb(db_path)
+    write_config(config_path, dataset_path, input_path, output_path, db_path)
+    input_path.write_text(
+        (
+            "race_key,horse_number,horse_name,win_odds,popularity,place_odds_min,"
+            "place_odds_max,place_basis_odds_proxy\n"
+            "44444444,1,Alpha,3.2,,1.6,2.0,1.8\n"
+        ),
+        encoding="utf-8",
+    )
+
+    config = module.load_config(config_path)
+    with pytest.raises(ValueError, match="live input model features.*popularity"):
+        module.load_live_rows(config)

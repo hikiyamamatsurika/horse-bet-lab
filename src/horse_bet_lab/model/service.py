@@ -22,7 +22,10 @@ from horse_bet_lab.features.provenance import (
     build_feature_provenance_payload,
     write_feature_provenance_sidecar,
 )
-from horse_bet_lab.features.registry import validate_model_feature_columns
+from horse_bet_lab.features.registry import (
+    validate_model_feature_columns,
+    validate_model_feature_missing_values,
+)
 
 SPLIT_ORDER = ("train", "valid", "test")
 PREDICTION_COLUMNS = (
@@ -207,6 +210,15 @@ def generate_rolling_pair_predictions(
     race_dates = np.array([row[2] for row in rows], dtype=object)
     feature_start = 3
     feature_end = feature_start + len(feature_columns)
+    validate_model_feature_missing_values(
+        feature_columns,
+        [row[feature_start:feature_end] for row in rows],
+        context="rolling retrain dataset",
+        row_labels=[
+            f"race_key={row[0]} horse_number={row[1]} race_date={row[2]}"
+            for row in rows
+        ],
+    )
     X_raw = np.array(
         [[float(value) for value in row[feature_start:feature_end]] for row in rows],
         dtype=np.float64,
@@ -457,6 +469,15 @@ def load_dataset(config: ModelTrainConfig) -> dict[str, dict[str, np.ndarray]]:
             horse_numbers = np.array([int(row[1]) for row in rows], dtype=np.int32)
             feature_start = 2
             feature_end = feature_start + len(config.feature_columns)
+            validate_model_feature_missing_values(
+                config.feature_columns,
+                [row[feature_start:feature_end] for row in rows],
+                context=f"training dataset split {split_name!r}",
+                row_labels=[
+                    f"race_key={row[0]} horse_number={row[1]} split={split_name}"
+                    for row in rows
+                ],
+            )
             X_raw = np.array(
                 [
                     [float(value) for value in row[feature_start:feature_end]]

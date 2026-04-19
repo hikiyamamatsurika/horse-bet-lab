@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import duckdb
+import pytest
 
 from horse_bet_lab.config import load_model_train_config
 from horse_bet_lab.model.service import train_logistic_regression_baseline
@@ -256,6 +257,60 @@ def test_train_logistic_regression_baseline_supports_dual_market_derived_feature
         "place_to_win_ratio",
     ]
     assert len(metrics["model"]["coefficients"]) == 4
+
+
+def test_train_logistic_regression_baseline_rejects_null_model_feature_values(
+    tmp_path: Path,
+) -> None:
+    dataset_path = tmp_path / "dataset_with_null_win_odds.parquet"
+    connection = duckdb.connect()
+    try:
+        connection.execute(
+            """
+            COPY (
+                SELECT * FROM (
+                    VALUES
+                        ('r1', 1, DATE '2025-01-05', 'train', 'is_place', 1.2, 1),
+                        ('r2', 1, DATE '2025-01-12', 'train', 'is_place', NULL, 0),
+                        ('r3', 1, DATE '2025-01-19', 'valid', 'is_place', 1.5, 1),
+                        ('r4', 1, DATE '2025-01-26', 'valid', 'is_place', 10.0, 0),
+                        ('r5', 1, DATE '2025-02-02', 'test', 'is_place', 2.0, 1),
+                        ('r6', 1, DATE '2025-02-09', 'test', 'is_place', 12.0, 0)
+                ) AS t(
+                    race_key,
+                    horse_number,
+                    race_date,
+                    split,
+                    target_name,
+                    win_odds,
+                    target_value
+                )
+            ) TO ? (FORMAT PARQUET)
+            """,
+            [str(dataset_path)],
+        )
+    finally:
+        connection.close()
+
+    config_path = tmp_path / "model_with_null.toml"
+    config_path.write_text(
+        (
+            "[training]\n"
+            "name = 'odds_only_null_rejection'\n"
+            f"dataset_path = '{dataset_path}'\n"
+            "model_name = 'logistic_regression'\n"
+            "feature_columns = ['win_odds']\n"
+            "feature_transforms = ['identity']\n"
+            "target_column = 'target_value'\n"
+            "split_column = 'split'\n"
+            f"output_dir = '{tmp_path / 'artifacts_null'}'\n"
+            "max_iter = 200\n"
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="training dataset split 'train'.*win_odds"):
+        train_logistic_regression_baseline(load_model_train_config(config_path))
 
 
 def test_train_hist_gradient_boosting_small_supports_dual_market_features(
