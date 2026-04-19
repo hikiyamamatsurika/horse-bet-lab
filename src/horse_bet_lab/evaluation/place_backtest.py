@@ -10,6 +10,7 @@ from pathlib import Path
 import duckdb
 
 from horse_bet_lab.config import PlaceBacktestConfig
+from horse_bet_lab.features.provenance import build_feature_provenance_payload
 from horse_bet_lab.model.service import RollingPairWindow, generate_rolling_pair_predictions
 
 SPLIT_ORDER = ("train", "valid", "test")
@@ -602,6 +603,10 @@ def run_place_backtest(config: PlaceBacktestConfig) -> PlaceBacktestResult:
         config.output_dir / "monthly_place_basis_buckets.json",
         config,
         place_basis_bucket_summaries,
+    )
+    write_place_backtest_provenance_manifest(
+        config.output_dir / "feature_provenance.json",
+        config,
     )
     return PlaceBacktestResult(
         output_dir=config.output_dir,
@@ -2568,6 +2573,11 @@ def write_place_backtest_json(
     summaries: tuple[PlaceBacktestSummary, ...],
 ) -> None:
     payload = {
+        "provenance": build_place_backtest_provenance(
+            config,
+            artifact_kind="place_backtest_summary_json",
+            artifact_path=path,
+        ),
         "backtest": {
             "name": config.name,
             "predictions_path": str(config.predictions_path),
@@ -2642,6 +2652,46 @@ def write_place_backtest_json(
         },
         "summaries": [asdict(summary) for summary in summaries],
     }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def build_place_backtest_provenance(
+    config: PlaceBacktestConfig,
+    *,
+    artifact_kind: str,
+    artifact_path: Path,
+) -> dict[str, object]:
+    model_feature_columns = (
+        config.rolling_feature_columns
+        if config.rolling_retrain_dataset_path is not None and config.rolling_feature_columns
+        else None
+    )
+    return build_feature_provenance_payload(
+        artifact_kind=artifact_kind,
+        generated_by="horse_bet_lab.evaluation.place_backtest.run_place_backtest",
+        config_identifier=config.name,
+        model_feature_columns=model_feature_columns,
+        artifact_path=str(artifact_path),
+        extra={
+            "predictions_path": str(config.predictions_path),
+            "duckdb_path": str(config.duckdb_path),
+            "selection_metric": config.selection_metric,
+            "market_prob_method": config.market_prob_method,
+            "rolling_retrain_dataset_path": (
+                str(config.rolling_retrain_dataset_path)
+                if config.rolling_retrain_dataset_path is not None
+                else None
+            ),
+        },
+    )
+
+
+def write_place_backtest_provenance_manifest(path: Path, config: PlaceBacktestConfig) -> None:
+    payload = build_place_backtest_provenance(
+        config,
+        artifact_kind="place_backtest_output_dir",
+        artifact_path=path,
+    )
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 

@@ -13,6 +13,8 @@ from pathlib import Path
 import duckdb
 import numpy as np
 
+from horse_bet_lab.features.provenance import build_feature_provenance_payload
+from horse_bet_lab.features.registry import validate_model_feature_columns
 from horse_bet_lab.model.service import (
     apply_feature_transforms,
     fit_model,
@@ -92,6 +94,11 @@ def load_config(path: Path) -> LiveInferenceConfig:
     payload = tomllib.loads(path.read_text(encoding="utf-8"))
     run = payload["live_inference"]
     reference = run["reference_model"]
+    feature_columns = tuple(str(value) for value in reference["feature_columns"])
+    validate_model_feature_columns(
+        feature_columns,
+        context=f"live_inference.reference_model feature_columns in {path}",
+    )
     return LiveInferenceConfig(
         name=str(run["name"]),
         race_name=str(run["race_name"]),
@@ -111,7 +118,7 @@ def load_config(path: Path) -> LiveInferenceConfig:
                 else None
             ),
             model_name=str(reference["model_name"]),
-            feature_columns=tuple(str(value) for value in reference["feature_columns"]),
+            feature_columns=feature_columns,
             feature_transforms=tuple(str(value) for value in reference["feature_transforms"]),
             target_column=str(reference.get("target_column", "target_value")),
             split_column=str(reference.get("split_column", "split")),
@@ -381,6 +388,22 @@ def write_manifest(config: LiveInferenceConfig, path: Path) -> None:
         "feature_list": list(config.reference_model.feature_columns),
         "proxy_rule": config.proxy_rule,
         "caveat": list(config.caveat),
+        "provenance": build_feature_provenance_payload(
+            artifact_kind="live_proxy_manifest_json",
+            generated_by="scripts.live_inference_score.write_manifest",
+            config_identifier=config.name,
+            model_feature_columns=config.reference_model.feature_columns,
+            artifact_path=str(path),
+            extra={
+                "dataset_path": str(config.reference_model.dataset_path),
+                "historical_duckdb_path": (
+                    str(config.reference_model.historical_duckdb_path)
+                    if config.reference_model.historical_duckdb_path is not None
+                    else None
+                ),
+                "training_splits": list(config.reference_model.training_splits),
+            },
+        ),
     }
     path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -504,7 +527,6 @@ def write_proxy_gap_diagnostic(
 
 def sha256_digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
 
 def main() -> None:
     args = build_parser().parse_args()

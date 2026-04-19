@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import duckdb
@@ -12,7 +13,12 @@ from horse_bet_lab.dataset.service import (
     build_horse_dataset,
     processed_columns,
 )
-from horse_bet_lab.ingest.service import ingest_jrdb_directory
+from horse_bet_lab.ingest.service import (
+    create_pre_race_market_tables,
+    create_win_market_snapshot_view,
+    ingest_jrdb_directory,
+    refresh_pre_race_market_staging,
+)
 
 BAC_SAMPLE_LINE_1 = bytes.fromhex(
     "3035323531383031323032353032323331303035313430303232313132413331303233208140814081408140814081408140814081408140814081408140814081408140814081408140814081408140814081408140202020202020202031362031814081408140814082528dce96a28f9f9798814081408140814034303035363030303232303030313430303030383430303035363030343030303030303031313131313131312020202020202020202020202020",
@@ -49,6 +55,8 @@ def test_build_horse_dataset_creates_expected_columns_and_grain(tmp_path: Path) 
     summary = build_horse_dataset(config)
 
     assert summary.row_count == 2
+    provenance_path = summary.output_path.with_name(f"{summary.output_path.name}.provenance.json")
+    assert provenance_path.exists()
 
     connection = duckdb.connect()
     try:
@@ -79,6 +87,16 @@ def test_build_horse_dataset_creates_expected_columns_and_grain(tmp_path: Path) 
     finally:
         connection.close()
 
+    payload = json.loads(provenance_path.read_text(encoding="utf-8"))
+    assert payload["feature_contract_version"] == "v1"
+    assert payload["dataset_feature_set"] == "minimal"
+    assert payload["dataset_feature_columns"] == [
+        "distance_m",
+        "race_name",
+        "workout_weekday",
+        "workout_date",
+    ]
+
 
 def test_build_horse_dataset_applies_period_filter(tmp_path: Path) -> None:
     duckdb_path = prepare_staging_database(tmp_path)
@@ -106,6 +124,7 @@ def test_build_horse_dataset_supports_market_plus_workout_minimal(tmp_path: Path
     duckdb_path = prepare_staging_database(tmp_path)
     result_path = tmp_path / "data" / "processed" / "dataset_market_workout.parquet"
     prepare_result_staging_database(duckdb_path)
+    prepare_oz_staging_database(duckdb_path)
 
     config_path = tmp_path / "dataset_market_workout.toml"
     config_path.write_text(
@@ -147,11 +166,72 @@ def test_build_horse_dataset_supports_market_plus_workout_minimal(tmp_path: Path
             [str(result_path)],
         ).fetchall()
         assert rows == [
-            ("05251801", 1, "valid", 12.3, 2, 4, 2, 1),
-            ("05251801", 2, "valid", 45.6, 8, 4, 2, 0),
+            ("05251801", 1, "valid", 11.2, 2, 4, 2, 1),
+            ("05251801", 2, "valid", 40.0, 8, 4, 2, 0),
         ]
     finally:
         connection.close()
+
+
+def test_build_horse_dataset_uses_win_market_snapshot_for_win_odds_and_legacy_sed_for_popularity(
+    tmp_path: Path,
+) -> None:
+    duckdb_path = prepare_staging_database(tmp_path)
+    prepare_result_staging_database(duckdb_path)
+    prepare_oz_staging_database(duckdb_path)
+    result_path = tmp_path / "data" / "processed" / "dataset_win_market_contract.parquet"
+
+    config_path = tmp_path / "dataset_win_market_contract.toml"
+    config_path.write_text(
+        (
+            "[dataset]\n"
+            "name = 'horse_dataset_win_market_contract'\n"
+            "start_date = '2025-02-01'\n"
+            "end_date = '2025-02-28'\n"
+            "feature_set = 'win_market_only'\n"
+            "target_name = 'is_place'\n"
+            f"duckdb_path = '{duckdb_path}'\n"
+            f"output_path = '{result_path}'\n"
+        ),
+        encoding="utf-8",
+    )
+
+    summary = build_horse_dataset(load_dataset_build_config(config_path))
+
+    assert summary.row_count == 2
+
+    connection = duckdb.connect()
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                race_key,
+                horse_number,
+                win_odds,
+                popularity,
+                target_value
+            FROM read_parquet(?)
+            ORDER BY horse_number
+            """,
+            [str(result_path)],
+        ).fetchall()
+        assert rows == [
+            ("05251801", 1, 11.2, 2, 1),
+            ("05251801", 2, 40.0, 8, 0),
+        ]
+    finally:
+        connection.close()
+
+    payload = json.loads(
+        result_path.with_name(f"{result_path.name}.provenance.json").read_text(encoding="utf-8"),
+    )
+    definitions = {row["canonical_name"]: row for row in payload["feature_definitions"]}
+    assert definitions["win_odds"]["carrier_identity"] == "win_market_snapshot_v1"
+    assert definitions["popularity"]["carrier_identity"] == "legacy_sed_only"
+    assert payload["feature_source_summary"]["by_carrier_identity"] == {
+        "legacy_sed_only": 1,
+        "win_market_snapshot_v1": 1,
+    }
 
 
 def test_build_horse_dataset_supports_dual_market_features(tmp_path: Path) -> None:
@@ -196,8 +276,8 @@ def test_build_horse_dataset_supports_dual_market_features(tmp_path: Path) -> No
             [str(result_path)],
         ).fetchall()
         assert rows == [
-            ("05251801", 1, 12.3, 2.4, 2, 1),
-            ("05251801", 2, 45.6, 3.1, 8, 0),
+            ("05251801", 1, 11.2, 2.4, 2, 1),
+            ("05251801", 2, 40.0, 3.1, 8, 0),
         ]
     finally:
         connection.close()
@@ -264,8 +344,8 @@ def test_build_horse_dataset_supports_single_win_market_feature_sets(tmp_path: P
             [str(win_market_path)],
         ).fetchall()
         assert win_market_rows == [
-            ("05251801", 1, 12.3, 2, 1),
-            ("05251801", 2, 45.6, 8, 0),
+            ("05251801", 1, 11.2, 2, 1),
+            ("05251801", 2, 40.0, 8, 0),
         ]
 
         dual_market_rows = connection.execute(
@@ -277,8 +357,8 @@ def test_build_horse_dataset_supports_single_win_market_feature_sets(tmp_path: P
             [str(dual_market_path)],
         ).fetchall()
         assert dual_market_rows == [
-            ("05251801", 1, 12.3, 2.4, 2, 1),
-            ("05251801", 2, 45.6, 3.1, 8, 0),
+            ("05251801", 1, 11.2, 2.4, 2, 1),
+            ("05251801", 2, 40.0, 3.1, 8, 0),
         ]
     finally:
         connection.close()
@@ -327,8 +407,8 @@ def test_build_horse_dataset_supports_dual_market_derived_features(tmp_path: Pat
             [str(result_path)],
         ).fetchall()
         assert rows == [
-            ("05251801", 1, 12.3, 2.4, 2, -1.634131, 1),
-            ("05251801", 2, 45.6, 3.1, 8, -2.688506, 0),
+            ("05251801", 1, 11.2, 2.4, 2, -1.540445, 1),
+            ("05251801", 2, 40.0, 3.1, 8, -2.557477, 0),
         ]
     finally:
         connection.close()
@@ -379,8 +459,8 @@ def test_build_horse_dataset_supports_dual_market_headcount_features(tmp_path: P
             [str(result_path)],
         ).fetchall()
         assert rows == [
-            ("05251801", 1, 12.3, 2.4, 2, 2, 2, 1400, 1),
-            ("05251801", 2, 45.6, 3.1, 8, 2, 2, 1400, 0),
+            ("05251801", 1, 11.2, 2.4, 2, 2, 2, 1400, 1),
+            ("05251801", 2, 40.0, 3.1, 8, 2, 2, 1400, 0),
         ]
     finally:
         connection.close()
@@ -424,6 +504,25 @@ def test_build_horse_dataset_supports_odds_only_from_sed_without_bac_cha(tmp_pat
                 (
                     '01240201', 1, 'r3', DATE '2024-02-10', 'horse3',
                     1400, 3, '6.1', 1, 'sample', 'hash', 1, NOW()
+                )
+            """,
+        )
+        create_pre_race_market_tables(connection)
+        create_win_market_snapshot_view(connection)
+        connection.execute(
+            """
+            INSERT INTO jrdb_pre_race_market_staging VALUES
+                (
+                    '01240101', 1, 8.5, 'oz_win_basis_odds', DATE '2024-01-06',
+                    'jrdb_oz_staging', 'win_basis_odds', 'sample', 'hash', 1, NOW()
+                ),
+                (
+                    '01240101', 2, 15.2, 'oz_win_basis_odds', DATE '2024-01-06',
+                    'jrdb_oz_staging', 'win_basis_odds', 'sample', 'hash', 1, NOW()
+                ),
+                (
+                    '01240201', 1, 6.1, 'oz_win_basis_odds', DATE '2024-02-10',
+                    'jrdb_oz_staging', 'win_basis_odds', 'sample', 'hash', 1, NOW()
                 )
             """,
         )
@@ -662,6 +761,7 @@ def prepare_oz_staging_database(duckdb_path: Path) -> None:
                 ('05251801', 2, 2, 40.0, 3.1, 'sample', 'hash', 1, NOW())
             """,
         )
+        refresh_pre_race_market_staging(connection)
     finally:
         connection.close()
 

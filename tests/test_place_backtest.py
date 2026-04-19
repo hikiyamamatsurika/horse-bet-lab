@@ -47,6 +47,7 @@ def test_run_place_backtest_writes_summary_artifacts(tmp_path: Path) -> None:
 
     assert (result.output_dir / "summary.csv").exists()
     assert (result.output_dir / "summary.json").exists()
+    assert (result.output_dir / "feature_provenance.json").exists()
     assert (result.output_dir / "candidate_summary.csv").exists()
     assert (result.output_dir / "candidate_summary.json").exists()
     assert (result.output_dir / "uncertainty_summary.csv").exists()
@@ -58,6 +59,7 @@ def test_run_place_backtest_writes_summary_artifacts(tmp_path: Path) -> None:
     assert (result.output_dir / "monthly_place_basis_buckets.csv").exists()
 
     payload = json.loads((result.output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert payload["provenance"]["feature_contract_version"] == "v1"
     assert payload["backtest"]["selection_metric"] == "probability"
     assert payload["backtest"]["thresholds"] == [0.5, 0.75]
     assert len(payload["summaries"]) == 6
