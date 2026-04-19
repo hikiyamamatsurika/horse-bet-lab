@@ -24,6 +24,10 @@
   - [configs/place_forward_test_phase1_mainline.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline.toml)
 - multi-race dry-run config example:
   - [configs/place_forward_test_phase1_mainline_multi_race.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline_multi_race.toml)
+- end-to-end operator rehearsal example:
+  - [configs/place_forward_test_phase1_mainline_example.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline_example.toml)
+  - [configs/place_forward_test_reconciliation_mainline_example.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_reconciliation_mainline_example.toml)
+  - [data/forward_test/place_phase1_example/input_snapshot_satsuki_sho_2025_04_20.csv](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/data/forward_test/place_phase1_example/input_snapshot_satsuki_sho_2025_04_20.csv)
 - reconciliation sample config:
   - [configs/place_forward_test_reconciliation.sample.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_reconciliation.sample.toml)
 - contract spec:
@@ -117,6 +121,13 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config confi
 5. reconciliation を実行する
 6. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
 
+operator rehearsal で最短確認したい点:
+
+1. `bet_decision_records.csv` に `bet` と `logic_filtered` が両方出ているか
+2. `reconciled_records.csv` に `settled_hit`, `settled_miss`, `settled_no_bet` が分かれているか
+3. `reconciliation_summary.json` の `settled_bets`, `hit_count`, `total_simulated_profit_loss` が読めるか
+4. provenance が `run_manifest.json` と `reconciliation_manifest.json` に残っているか
+
 pre-race mainline 例:
 
 ```bash
@@ -128,6 +139,15 @@ post-race reconciliation 例:
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli --config configs/place_forward_test_reconciliation.sample.toml
 ```
+
+end-to-end operator rehearsal 例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1_mainline_example.toml
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli --config configs/place_forward_test_reconciliation_mainline_example.toml
+```
+
+この example は local にある 2025-04-20 皐月賞 snapshot を contract CSV 化したものです。Phase 1 の最小 operator rehearsal として、pre-race で `bet` が出て、そのまま result-side reconciliation まで通せます。
 
 reconciliation config で最低限埋める項目:
 
