@@ -48,6 +48,59 @@
 - 日次 / レース単位での forward-test 実行と保存を再現可能にする
 - mainline baseline を comparison anchor として参照できる状態にする
 
+Phase 1 の実装順は以下に固定する。
+
+1. input contract
+2. odds snapshot
+3. prediction
+4. bet decision
+5. artifact write
+6. reconciliation
+
+Phase 1 では CSV schema 合意までを含める。WebUI 実装は Phase 3 に分離する。
+
+Phase 1 で先に固定しておく acceptance / contract は次のとおり。
+
+- popularity live input policy:
+  - `popularity` carrier は unresolved のまま扱う
+  - forward-test では `popularity` を required input にしない
+  - live input に `popularity` が無い場合でも、それだけを理由に補完や推定はしない
+  - live input に `popularity` がある場合も、upstream-confirmed carrier ではなく operator-supplied auxiliary field として扱う
+  - provenance には少なくとも以下を残す
+    - `popularity_input_present`
+    - `popularity_input_source`
+    - `popularity_contract_status=unresolved_auxiliary`
+  - `popularity` unavailable 時は no-bet reason にしない
+    - ただし利用モデルが `popularity` を必須 feature とするなら、その model は Phase 1 の standard path に載せない
+
+- odds snapshot failure/timing policy:
+  - 発走直前オッズ取得は retry を持つ
+  - retry 上限、timeout、最終取得失敗は artifact に残す
+  - observation timestamp は必須で記録する
+  - observation timestamp が無い snapshot は valid decision input とみなさない
+  - timeout / retry exhaustion / required odds missing の場合は hidden fallback で進めず、明示的に `no_bet` に倒す
+  - no-bet は BET logic の改善としてではなく、forward-test input failure handling として扱う
+  - race ごとに少なくとも以下を保存する
+    - `odds_observation_timestamp`
+    - `odds_snapshot_status`
+    - `retry_count`
+    - `timeout_seconds`
+    - `no_bet_due_to_snapshot_failure`
+
+- forward-test artifact provenance requirements:
+  - artifact には少なくとも以下を紐付ける
+    - `feature_contract_version`
+    - `model_version`
+    - `carrier_identity`
+    - `odds_observation_timestamp`
+    - `decision_reason`
+  - 必要なら以下も残す
+    - `baseline_logic_id`
+    - `fallback_logic_id`
+    - `input_schema_version`
+    - `run_manifest_hash`
+  - provenance は「どの入力契約で、どのモデルが、どの観測時点の odds を使って、なぜその判断を出したか」を後から辿れることを acceptance とする
+
 ### 2. 資金運用ロジック
 
 - 複勝一本の運用前提で bankroll management を整理する
