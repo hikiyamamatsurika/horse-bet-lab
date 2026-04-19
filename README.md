@@ -4,6 +4,9 @@
 
 今の段階では、比較実験の土台になる Python プロジェクト構成、config を 1 つ読み込んで動くダミー runner、そして JRDB 生データを raw から staging に取り込む最小 ingest 基盤を用意しています。モデル実装や学習データ生成にはまだ入っていません。
 
+現在の主テーマは、複勝一本の forward-test 運用基盤を mainline の上で固めることです。
+短期〜中期の正本 roadmap は [docs/roadmaps/place_forward_test_plan.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/roadmaps/place_forward_test_plan.md:1) を参照してください。
+
 ## Directory Layout
 
 ```text
