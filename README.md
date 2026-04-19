@@ -2447,7 +2447,9 @@ PYTHONPATH=src python -m horse_bet_lab.evaluation.bet_set_diff_cli --config conf
     - つまり「strategy 単体の比較」と「bankroll を含む運用比較」は意図的に分けて読む
     - 本線の確認順は `strategy_summary -> oos_backtest_summary -> uncertainty_summary -> stateful_bankroll_summary` に固定する
     - 本線 pack は `manifest.json` でも固定する
+    - さらに `code_commit_sha` も含めて固定する
     - manifest と実ファイルが一致しない場合、その pack は比較基準として扱わない
+    - manifest は一致しても commit が一致しない pack も比較基準として扱わない
     - producer だけでなく consumer 側でも verify する
       - CLI: `horse-bet-lab-reference-pack-verify`
       - code path: `verify_reference_pack_or_raise(...)`

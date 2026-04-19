@@ -118,10 +118,12 @@ artifact の意味:
 ## Manifest Rule
 
 - 本線 pack は `manifest.json` で固定する
+- 本線 pack は `code_commit_sha` も含めて固定する
 - `horse-bet-lab-reference-pack` 実行後は manifest も再生成される
 - 確認時は `horse-bet-lab-reference-pack-verify --pack-dir data/artifacts/reference_pack_dual_market_logreg_mainline_2023_2025`
   を使う
 - manifest と実ファイルが一致しない場合、その pack は比較基準として扱わない
+- manifest は一致しても commit が一致しない pack も比較基準として扱わない
 - consumer 側でも、pack を読む前に verify を通す
   - CLI なら `horse-bet-lab-reference-pack-verify`
   - code path なら `verify_reference_pack_or_raise(...)`

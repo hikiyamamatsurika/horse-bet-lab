@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from horse_bet_lab.config import load_reference_pack_config
@@ -107,6 +108,29 @@ research_candidates = []
     assert "reference_config_sha256" in payload
     assert "dataset_parquets" in payload
     assert "code_commit_sha" in payload
+    assert payload["code_commit_sha"]
+    assert verified.expected_code_commit_sha == payload["code_commit_sha"]
+    assert verified.actual_code_commit_sha == payload["code_commit_sha"]
+    assert verified.code_commit_matches is True
+
+
+def test_reference_pack_manifest_contains_current_git_commit() -> None:
+    pack_dir = Path("data/artifacts/reference_pack_dual_market_logreg_mainline_2023_2025")
+    manifest_path = pack_dir / "manifest.json"
+    if not manifest_path.exists():
+        return
+
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    actual_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+
+    assert payload["code_commit_sha"] == actual_commit
+    verified = verify_reference_pack(pack_dir)
+    assert verified.expected_code_commit_sha == actual_commit
+    assert verified.actual_code_commit_sha == actual_commit
+    assert verified.code_commit_matches is True
 
 
 def test_reference_pack_verify_or_raise_fails_on_missing_artifact(tmp_path: Path) -> None:
