@@ -2373,6 +2373,29 @@ PYTHONPATH=src python -m horse_bet_lab.evaluation.bet_set_diff_cli --config conf
 ## Mainline Reference
 
 - 現時点の本線 reference pack は、`configs/reference_pack_dual_market_logreg_mainline_2023_2025.toml` で再現できる
+  - BET logic only 比較ラインは `configs/bet_logic_only_dual_market_logreg_mainline_2023_2025.toml` を入口にし、mainline model / feature / training は固定のまま `rolling_predictions.csv` を読んで賭け方だけを比較する
+  - BET logic only の現行 mainline candidate は `guard_0_01_plus_proxy_domain_overlay`
+  - これは `no_bet_guard_stronger surcharge=0.01` を base にし、venue-code-based domain bucket `02 / 09` にだけ追加 surcharge を載せる最小 overlay
+  - formal wording は次で固定する
+    - `race_key` は upstream race identifier
+    - `race_key[:2]` は upstream-defined `venue_code`
+    - domain/group は `venue_code` から project 側 mapping で導出する
+  - historical artifact name の `proxy_domain` は互換性維持のため残しているが、意味としては `venue_code` 由来の project-owned bucket
+  - config では `provisional_proxy_domain_overlay_enabled=true` で現行 candidate を使い、`false` にすると `no_bet_guard_stronger surcharge=0.01` fallback に落とせる
+  - operational run mode は `active_run_mode` で明示する
+    - `candidate_provisional`
+    - `fallback_stable`
+    - run_mode 名は package 互換の legacy label で、adopt status そのものではない
+  - `formal_domain_mapping_confirmed=true` は venue_code formalization と project-owned mapping を repo 内で固定した状態を表す
+  - `no_bet_guard_stronger surcharge=0.01` は production-simple fallback として残す
+  - 最終指示は `final_*instructions*` と `final_instruction_package_manifest.csv/json`, `final_instruction_package_summary.csv/json` をセットで読む
+  - post-freeze monitoring:
+    - 新しい rolling artifact が来たら `candidate_provisional` と `fallback_stable` の両方を再実行する
+    - `final_instruction_package_manifest`, `final_instruction_package_summary`, `monitoring_summary`, `regression_gate_report`, `artifact_compare_report` を確認する
+    - `regression_gate_report` が `fail` の場合は `fallback_stable` を使う
+  - `baseline_current_logic` は reference parity anchor として固定し、比較前提として壊さない
+  - heuristic chaos は本線採用しない
+  - `chaos_edge_surcharge` は research-only、`chaos_no_bet_guard` と `no_bet_guard_plus_chaos` は stop 扱い
   - 運用手順書:
     - [docs/mainline_reference_runbook.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/mainline_reference_runbook.md)
   - config:

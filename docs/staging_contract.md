@@ -12,6 +12,10 @@
 
 ## Table Grain And Keys
 
+`race_key` は upstream の race identifier として扱います。project 内では `race_key[:2]` を
+upstream-defined `venue_code` として参照してよく、`JRA` / `Nankan` のような broader
+domain/group は upstream enum ではなく project-owned derived mapping として扱います。
+
 ### `jrdb_bac_staging`
 
 - grain: 1 row per race
