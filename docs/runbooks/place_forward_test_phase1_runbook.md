@@ -22,6 +22,8 @@
   - [configs/place_forward_test_phase1.sample.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1.sample.toml)
 - runtime config example:
   - [configs/place_forward_test_phase1_mainline.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline.toml)
+- multi-race dry-run config example:
+  - [configs/place_forward_test_phase1_mainline_multi_race.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline_multi_race.toml)
 - contract spec:
   - [docs/spec/place_forward_test_contract_v1.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/spec/place_forward_test_contract_v1.md)
 
@@ -98,6 +100,12 @@ race_key,horse_number,win_odds,place_basis_odds,popularity,odds_observation_time
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1.sample.toml
 ```
 
+multi-race dry-run の例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1_mainline_multi_race.toml
+```
+
 ## What Appears Under output_dir
 
 - `input_snapshot_records.csv`
@@ -121,6 +129,11 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config confi
 - run 全体の provenance を見たい:
   - `run_manifest.json`
   - `run_manifest.json.provenance.json`
+- race をまたいだ snapshot status の内訳を見たい:
+  - `run_manifest.json` の `snapshot_status_counts`
+- `logic_filtered` と snapshot failure 系を分けて見たい:
+  - `bet_decision_records.csv` の `no_bet_reason`
+  - `logic_filtered`, `timeout`, `required_odds_missing` を別カテゴリとして読む
 
 ## Minimal Artifact Schema Notes
 
