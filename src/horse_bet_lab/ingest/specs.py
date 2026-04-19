@@ -52,7 +52,16 @@ SUPPORTED_FILE_SPECS: tuple[FileSpec, ...] = (
         grain="one row per race",
         primary_key_candidates=("race_key",),
         columns=(
-            ColumnSpec("race_key", "VARCHAR", 0, 8, to_text, CONFIRMED, True, "Race-level key."),
+            ColumnSpec(
+                "race_key",
+                "VARCHAR",
+                0,
+                8,
+                to_text,
+                CONFIRMED,
+                True,
+                "Race-level key. The first two characters are treated downstream as the upstream venue_code; any broader domain/grouping is project-derived.",
+            ),
             ColumnSpec(
                 "race_date",
                 "DATE",
@@ -160,7 +169,7 @@ SUPPORTED_FILE_SPECS: tuple[FileSpec, ...] = (
                 to_text,
                 CONFIRMED,
                 True,
-                "Race-level key shared with race tables.",
+                "Race-level key shared with race tables. Downstream venue_code comes from race_key[:2]; broader grouping remains project-derived.",
             ),
             ColumnSpec(
                 "horse_number",

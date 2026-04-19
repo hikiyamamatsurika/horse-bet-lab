@@ -144,6 +144,46 @@ class RankingRuleComparisonConfig:
 
 
 @dataclass(frozen=True)
+class BetLogicOnlyConfig:
+    config_path: Path
+    name: str
+    duckdb_path: Path
+    rolling_predictions_path: Path
+    reference_label_guard_compare_config_path: Path
+    output_dir: Path
+    selection_metric: str
+    market_prob_method: str
+    thresholds: tuple[float, ...]
+    min_win_odds: float | None
+    max_win_odds: float | None
+    split_column: str
+    target_column: str
+    probability_column: str
+    stake_per_bet: float
+    aggregate_selection_score_rule: str
+    min_bets_valid: int | None
+    popularity_bands: tuple[tuple[int | None, int | None], ...]
+    place_basis_bands: tuple[tuple[float | None, float | None], ...]
+    evaluation_window_pairs: tuple[
+        tuple[str, date | None, date | None, date | None, date | None],
+        ...,
+    ]
+    selection_window_groups: tuple[tuple[str, tuple[str, ...], str], ...]
+    bootstrap_iterations: int
+    random_seed: int
+    stronger_guard_edge_surcharge: float
+    sizing_tilt_step: float
+    sizing_tilt_min_multiplier: float
+    sizing_tilt_max_multiplier: float
+    no_bet_guard_sensitivity_levels: tuple[float, ...]
+    sizing_tilt_max_multiplier_sensitivity_levels: tuple[float, ...]
+    initial_bankroll: float
+    provisional_proxy_domain_overlay_enabled: bool
+    formal_domain_mapping_confirmed: bool
+    active_run_mode: str
+
+
+@dataclass(frozen=True)
 class ReferenceStrategyDiagnosticsConfig:
     name: str
     ranking_rule_comparison_config_path: Path
@@ -701,6 +741,76 @@ def load_ranking_rule_comparison_config(path: Path) -> RankingRuleComparisonConf
         evaluation_window_pairs=base_backtest_config.evaluation_window_pairs,
         selection_window_groups=base_backtest_config.selection_window_groups,
         ranking_score_rules=ranking_score_rules,
+    )
+
+
+def load_bet_logic_only_config(path: Path) -> BetLogicOnlyConfig:
+    with path.open("rb") as file:
+        raw_config = tomllib.load(file)
+
+    analysis = raw_config["analysis"]
+    base_backtest_config = load_place_backtest_config(Path(analysis["base_backtest_config_path"]))
+    provisional_enabled = bool(analysis.get("provisional_proxy_domain_overlay_enabled", True))
+    active_run_mode = "candidate_provisional" if provisional_enabled else "fallback_stable"
+    return BetLogicOnlyConfig(
+        config_path=path,
+        name=str(analysis["name"]),
+        duckdb_path=base_backtest_config.duckdb_path,
+        rolling_predictions_path=Path(analysis["rolling_predictions_path"]),
+        reference_label_guard_compare_config_path=Path(
+            analysis["reference_label_guard_compare_config_path"],
+        ),
+        output_dir=Path(analysis["output_dir"]),
+        selection_metric=base_backtest_config.selection_metric,
+        market_prob_method=base_backtest_config.market_prob_method,
+        thresholds=base_backtest_config.thresholds,
+        min_win_odds=base_backtest_config.min_win_odds,
+        max_win_odds=base_backtest_config.max_win_odds,
+        split_column=base_backtest_config.split_column,
+        target_column=base_backtest_config.target_column,
+        probability_column=base_backtest_config.probability_column,
+        stake_per_bet=base_backtest_config.stake_per_bet,
+        aggregate_selection_score_rule=str(
+            analysis.get(
+                "aggregate_selection_score_rule",
+                base_backtest_config.aggregate_selection_score_rule,
+            ),
+        ),
+        min_bets_valid=(
+            int(analysis["min_bets_valid"])
+            if "min_bets_valid" in analysis
+            else base_backtest_config.min_bets_valid
+        ),
+        popularity_bands=base_backtest_config.popularity_bands,
+        place_basis_bands=base_backtest_config.place_basis_bands,
+        evaluation_window_pairs=base_backtest_config.evaluation_window_pairs,
+        selection_window_groups=base_backtest_config.selection_window_groups,
+        bootstrap_iterations=int(analysis.get("bootstrap_iterations", 1000)),
+        random_seed=int(analysis.get("random_seed", 42)),
+        stronger_guard_edge_surcharge=float(analysis.get("stronger_guard_edge_surcharge", 0.01)),
+        sizing_tilt_step=float(analysis.get("sizing_tilt_step", 0.2)),
+        sizing_tilt_min_multiplier=float(analysis.get("sizing_tilt_min_multiplier", 0.8)),
+        sizing_tilt_max_multiplier=float(analysis.get("sizing_tilt_max_multiplier", 1.2)),
+        no_bet_guard_sensitivity_levels=tuple(
+            float(value)
+            for value in analysis.get(
+                "no_bet_guard_sensitivity_levels",
+                [0.01, 0.02, 0.03],
+            )
+        ),
+        sizing_tilt_max_multiplier_sensitivity_levels=tuple(
+            float(value)
+            for value in analysis.get(
+                "sizing_tilt_max_multiplier_sensitivity_levels",
+                [1.1, 1.2, 1.3],
+            )
+        ),
+        initial_bankroll=float(analysis.get("initial_bankroll", 10000.0)),
+        provisional_proxy_domain_overlay_enabled=provisional_enabled,
+        formal_domain_mapping_confirmed=bool(
+            analysis.get("formal_domain_mapping_confirmed", False),
+        ),
+        active_run_mode=active_run_mode,
     )
 
 

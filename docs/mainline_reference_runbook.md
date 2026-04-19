@@ -109,6 +109,48 @@ artifact の意味:
 - `capped_fractional_kelly_like_drawdown_reduction`
 - `per_race_cap > 200` の強気運用
 
+## BET Logic Only Status
+
+- BET logic only の比較では、mainline model / feature / training / rolling prediction generation は固定する
+- `baseline_current_logic` は reference parity anchor として固定し、比較前提として壊さない
+- 現時点の mainline BET logic candidate は `guard_0_01_plus_proxy_domain_overlay`
+  - base は `no_bet_guard_stronger surcharge=0.01`
+  - final overlay は venue-code-based domain bucket `02 / 09` に対する追加 surcharge のみ
+  - year 条件は使わない
+  - formal wording は次で固定する
+    - `race_key` は upstream race identifier
+    - `race_key[:2]` は upstream-defined `venue_code`
+    - domain/group は `venue_code` から project-owned mapping で導出する
+  - historical artifact name の `proxy_domain` は互換性維持のため残し、意味は `venue_code` 由来の project bucket と読む
+  - config 運用:
+    - `provisional_proxy_domain_overlay_enabled=true`: 現行 candidate を使う
+    - `provisional_proxy_domain_overlay_enabled=false`: `no_bet_guard_stronger surcharge=0.01` fallback を使う
+    - `active_run_mode=candidate_provisional`: provisional candidate package を出す
+    - `active_run_mode=fallback_stable`: stable fallback package を出す
+    - run_mode 名は package 互換の legacy label で、adopt status そのものではない
+    - `formal_domain_mapping_confirmed=true`: venue_code formalization と project-owned mapping が repo 内で固定済みであることを示す
+- `no_bet_guard_stronger surcharge=0.01` は production-simple fallback として残す
+- 現時点の運用メモ:
+  - candidate は数値上優位で、domain formalization 後は hard adopt 判定に上げられる
+  - fallback は stable path
+  - fallback は venue-code-based overlay を無効化した安定経路として残す
+- post-freeze monitoring 手順:
+  - 新しい rolling artifact が来たら `candidate_provisional` を実行する
+  - 続けて `fallback_stable` も実行する
+  - `final_instruction_package_manifest`, `final_instruction_package_summary`, `monitoring_summary`, `regression_gate_report`, `artifact_compare_report` を確認する
+  - `regression_gate_report` に `fail` があれば fallback を使う
+- heuristic chaos は本線採用しない
+  - `chaos_edge_surcharge` は research-only
+  - `chaos_no_bet_guard` と `no_bet_guard_plus_chaos` は stop
+- 他の minimal overlay は本線採用しない
+  - `guard_0_01_plus_near_threshold_overlay`: not adopted
+  - `guard_0_01_plus_place_basis_overlay`: not adopted
+  - `guard_0_01_plus_domain_x_threshold_overlay`: secondary reference only
+- 理由:
+  - `guard 0.01` は baseline parity を保ったまま profit を改善し、良い base line になった
+  - その上で proxy-domain overlay は `guard 0.01` 比で profit と drawdown を同時改善した
+  - heuristic chaos は edge の完全な別名ではないが、独立 signal としては弱く、profitable high-chaos bets や guard の勝ち筋まで削った
+
 ルール:
 
 - 新しい改善案は、まず research candidate として本線に並べて比較する

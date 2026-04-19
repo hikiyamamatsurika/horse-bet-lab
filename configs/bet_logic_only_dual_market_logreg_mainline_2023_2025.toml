@@ -1,0 +1,36 @@
+[analysis]
+# BET logic only mainline candidate:
+# - hard adopt: guard_0_01_plus_proxy_domain_overlay
+#   - base: no_bet_guard_stronger surcharge=0.01
+#   - overlay: additional surcharge on venue-code-based domain bucket 02 / 09 only
+#   - note: upstream provides venue_code = race_key[:2]; project domain/group is a derived mapping layer
+# - run modes:
+#   - candidate_provisional: current candidate package (legacy label; adopt status is tracked separately)
+#   - fallback_stable: guard 0.01 fallback package
+# - fallback: no_bet_guard_stronger surcharge=0.01
+# - fixed anchor: baseline_current_logic parity vs reference
+# - research-only: chaos_edge_surcharge
+# - stop: chaos_no_bet_guard, no_bet_guard_plus_chaos
+# - not adopted: guard_0_01_plus_near_threshold_overlay, guard_0_01_plus_place_basis_overlay
+name = "bet_logic_only_dual_market_logreg_mainline_2023_2025"
+base_backtest_config_path = "configs/place_backtest_edge_oz_place_basis_dual_market_robustness_2023_2025.toml"
+rolling_predictions_path = "data/artifacts/dual_market_reference_comparison_2023_2025/dual_market_logreg/backtest/rolling_predictions.csv"
+reference_label_guard_compare_config_path = "configs/reference_label_guard_compare_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/bet_logic_only_dual_market_logreg_mainline_2023_2025"
+aggregate_selection_score_rule = "positive_window_count_then_mean_roi_then_min_roi"
+min_bets_valid = 10
+bootstrap_iterations = 1000
+random_seed = 42
+stronger_guard_edge_surcharge = 0.01
+# true: use frozen candidate guard_0_01_plus_proxy_domain_overlay
+# false: fall back to no_bet_guard_stronger surcharge=0.01
+provisional_proxy_domain_overlay_enabled = true
+active_run_mode = "candidate_provisional"
+# set true because venue_code formalization and project-owned domain mapping are fixed in-repo
+formal_domain_mapping_confirmed = true
+sizing_tilt_step = 0.2
+sizing_tilt_min_multiplier = 0.8
+sizing_tilt_max_multiplier = 1.2
+no_bet_guard_sensitivity_levels = [0.01, 0.02, 0.03]
+sizing_tilt_max_multiplier_sensitivity_levels = [1.1, 1.2, 1.3]
+initial_bankroll = 10000
