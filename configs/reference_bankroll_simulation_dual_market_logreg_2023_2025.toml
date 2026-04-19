@@ -1,0 +1,20 @@
+[analysis]
+name = "reference_bankroll_simulation_dual_market_logreg_2023_2025"
+reference_label_guard_compare_config_path = "configs/reference_label_guard_compare_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/reference_bankroll_simulation_dual_market_logreg_2023_2025"
+stake_variants = [
+  "flat_100",
+  "capped_fractional_kelly_like",
+  "capped_fractional_kelly_like_per_race_cap",
+  "capped_fractional_kelly_like_per_day_cap",
+  "capped_fractional_kelly_like_drawdown_reduction",
+]
+initial_bankrolls = [5000, 10000, 30000]
+kelly_fraction = 0.25
+kelly_cap_stake = 500
+per_race_cap_stake = 300
+per_day_cap_stake = 800
+drawdown_reduction_threshold = 500
+drawdown_reduction_factor = 0.5
+bootstrap_iterations = 1000
+random_seed = 42

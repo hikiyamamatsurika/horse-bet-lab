@@ -1,0 +1,350 @@
+Metadata-Version: 2.4
+Name: horse-bet-lab
+Version: 0.1.0
+Summary: Experiment platform for horse racing prediction and backtesting.
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: duckdb>=1.1
+Requires-Dist: scikit-learn>=1.5
+Provides-Extra: dev
+Requires-Dist: mypy>=1.10; extra == "dev"
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: ruff>=0.5; extra == "dev"
+
+# horse-bet-lab
+
+競馬の予測・バックテスト基盤を長期的に育てるための最小スタート地点です。
+
+今の段階では、比較実験の土台になる Python プロジェクト構成、config を 1 つ読み込んで動くダミー runner、そして JRDB 生データを raw から staging に取り込む最小 ingest 基盤を用意しています。モデル実装や学習データ生成にはまだ入っていません。
+
+## Directory Layout
+
+```text
+.
+├── configs/
+├── data/
+│   ├── artifacts/
+│   ├── raw/
+│   │   └── jrdb/
+│   └── staging/
+├── scripts/
+├── src/
+│   └── horse_bet_lab/
+└── tests/
+```
+
+`src/horse_bet_lab/` の下は、将来的に以下のような分割を想定しています。
+
+- `ingest/`
+- `dataset/`
+- `features/`
+- `models/`
+- `strategies/`
+- `backtest/`
+- `evaluation/`
+
+データレイヤは `raw / staging / mart` を意識しますが、今回の実装範囲は `raw -> staging` までです。
+
+- `data/raw/jrdb/`: JRDB の受領済み生ファイル置き場
+- `data/staging/`: 中間生成物の置き場。今回は方針のみ作成
+- `data/artifacts/`: DuckDB ファイルなどローカル成果物の置き場
+
+## Setup
+
+このプロジェクトは Python 3.11 以上を前提にします。設定ファイル形式は TOML を正式採用しています。
+
+まず Python 3.11 以上が使えることを確認してください。
+
+```bash
+python3.11 --version
+```
+
+`python3.11` が無い環境では、各自の方法で 3.11 以上を先に用意してください。その後、以下の手順でローカル環境を作成します。
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+## Config Format
+
+実験設定ファイルは TOML を使います。現時点のサンプルは [configs/default.toml](/Users/matsurimbpblack/Library/Mobile Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/default.toml:1) です。
+
+## Run
+
+サンプル config を使ってダミー runner を実行します。
+
+```bash
+PYTHONPATH=src python -m horse_bet_lab.runner --config configs/default.toml
+```
+
+`pip install -e ".[dev]"` 後にコンソールスクリプトを使うこともできます。
+
+```bash
+horse-bet-lab-run --config configs/default.toml
+```
+
+期待される出力例:
+
+```text
+Running dummy experiment:
+  name: baseline_dummy
+  model: dummy
+  feature_set: minimal
+  strategy: flat
+  period: 2020-01-01_to_2020-12-31
+```
+
+## JRDB Ingest
+
+ローカルファイル DB には DuckDB を採用しています。デフォルトの DB ファイルは `data/artifacts/jrdb.duckdb` です。
+
+今回の最小実装では、JRDB ファイル種別のうち以下を対象にしています。
+
+- `BAC`
+- `CHA`
+- `SED`
+
+`BAC*.txt` / `CHA*.txt` は、手元で確認した `PACI250223.zip` サンプルを前提に、固定長テキストとして読み込みます。文字コード、欠損値、日付、型変換は ingest 内の関数で分離しています。
+
+確認済み事項:
+
+- `BAC`: 1 レコード 182 byte の固定長。1 レース 1 レコードに見える
+- `CHA`: 1 レコード 62 byte の固定長。`レースキー + 馬番` 単位のレコードに見える
+- どちらも CP932 で問題なく読める
+
+staging に出している列は、実サンプルから位置と意味を確認しやすかったものに限定しています。意味が未確定の後半ブロックは `*_block` として保持しています。
+
+未解決点:
+
+- `BAC` の後半数値ブロックの厳密な意味づけは未完了
+- `CHA` の `workout_code` / `workout_time_block` / `workout_metrics_block` / `workout_comment_code` の詳細仕様は今後詰める
+- `SED` の `distance_m` / `win_odds` / `popularity` は位置確認までで、feature 用 contract には入れていない
+- 今回確認したのは `PACI250223.zip` 内の実サンプルであり、他日付ファイルで追加差異が出る可能性はある
+
+結果系ファイル:
+
+- 結果系の最小 ingest 対象は `SED`
+- `SED` は JRDB 公式仕様を参照して固定長 374 byte として扱う
+- 粒度は `race_key + horse_number`
+- 現時点では feature 用ではなく target 生成用 staging として扱う
+
+取り込みコマンド:
+
+```bash
+PYTHONPATH=src python -m horse_bet_lab.ingest.cli
+```
+
+`pip install -e ".[dev]"` 後にコンソールスクリプトを使うこともできます。
+
+```bash
+horse-bet-lab-ingest
+```
+
+パスを明示したい場合:
+
+```bash
+PYTHONPATH=src python -m horse_bet_lab.ingest.cli \
+  --raw-dir data/raw/jrdb \
+  --duckdb-path data/artifacts/jrdb.duckdb
+```
+
+取り込み結果は以下のテーブルに保存されます。
+
+- `ingestion_runs`
+- `ingested_files`
+- `jrdb_bac_staging`
+- `jrdb_cha_staging`
+- `jrdb_sed_staging`
+
+同じ入力で再実行した場合も、同一 `source_file_path` の staging 行を置き換えてから再投入するため、staging 側の重複を増やさずに再現可能です。
+
+## Staging Contract
+
+dataset builder が参照してよい staging 列、粒度、主キー候補、列の安定度は [docs/staging_contract.md](/Users/matsurimbpblack/Library/Mobile Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/staging_contract.md:1) に固定しています。
+
+要点だけ先に書くと、
+
+- `jrdb_bac_staging` の粒度は 1 row per race、主キー候補は `race_key`
+- `jrdb_cha_staging` の粒度は 1 row per `race_key + horse_number`、主キー候補は `race_key`, `horse_number`
+- `jrdb_sed_staging` の粒度は 1 row per `race_key + horse_number`、主キー候補は `race_key`, `horse_number`
+- dataset builder が参照してよい列は allowlist に限定
+- `opaque` 列は traceability 用であり downstream では使わない
+- `provisional` 列は allowlist に含まれるものだけを downstream 利用可とする
+
+## Dataset Build
+
+horse-level dataset は `race_key + horse_number` を基本粒度として、staging contract の allowlist を参照しながら build します。今回の最小実装では confirmed 列を優先し、opaque 列は使いません。
+
+出力先は `data/processed/` です。サンプル config は [configs/dataset_minimal.toml](/Users/matsurimbpblack/Library/Mobile Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/dataset_minimal.toml:1) にあります。
+
+今回の最小 dataset は以下の列を出力します。
+
+- `race_key`
+- `horse_number`
+- `race_date`
+- `split`
+- `distance_m`
+- `race_name`
+- `workout_weekday`
+- `workout_date`
+- `target_name`
+- `target_value`
+
+feature set:
+
+- `minimal`: `distance_m`, `race_name`, `workout_weekday`, `workout_date`
+- `odds_only`: `win_odds`
+- `odds_only` で `include_popularity = true` を指定した場合は `popularity` も追加
+
+feature set は config の `feature_set` で切り替えます。`odds_only` は現時点では
+`is_place` target と組み合わせる最初の比較基準用 dataset です。
+
+target は以下の 2 種を選べます。
+
+- `workout_gap_days`: 暫定 target。`race_date - workout_date` の日数
+- `is_place`: 正式な結果系 target 候補。`finish_position` が `1..3` を 1、`4..18` を 0 とし、非通常値は build から除外
+
+`is_place` は `jrdb_sed_staging` を `race_key + horse_number` で join して生成します。将来 `is_win` や払戻ベース target に差し替えやすいよう、target 定義は関数分離しています。
+
+`configs/dataset_is_place.toml` は 2025 通年を対象にした実データ検証用 config です。
+
+時系列 split:
+
+- split は `race_date` ベースで固定
+- config では `train_end_date` と `valid_end_date` を指定する
+- `start_date .. train_end_date` を `train`
+- `train_end_date` より後かつ `valid_end_date` までを `valid`
+- `valid_end_date` より後を `test`
+- split を設定しない場合は全件を `train` として出力
+
+feature / target / metadata の境界:
+
+- metadata: `race_key`, `horse_number`, `race_date`, `split`, `target_name`
+- feature: feature set ごとに切り替える
+- target: `target_value`
+- `win_odds` / `popularity` は `odds_only` では feature として許可する
+- `finish_position` など結果系列の source 列は dataset schema に出さない
+
+leakage ルール:
+
+- 同一 `race_key` は split を跨がない
+- `train` に `train_end_date` より未来の `race_date` を入れない
+- `valid` に `train_end_date` 以前や `valid_end_date` より未来の `race_date` を入れない
+- `test` に `valid_end_date` 以前の `race_date` を入れない
+- build 後に dataset validation を実行し、違反があれば失敗させる
+
+2025 実データ確認結果:
+
+- build 出力件数: `46,768`
+- `CHA -> BAC` join 成功: `47,149 / 47,149`
+- `CHA + BAC -> SED` join 成功: `47,149 / 47,149`
+- join 落ち: `0`
+- `finish_position = 0` の非通常値: `381`
+- 非通常値は `is_place` build から除外
+- `is_place = 1`: `10,217`
+- `is_place = 0`: `36,551`
+- 月次件数は `3,054` から `4,772` の範囲で推移し、極端な欠損月は見られない
+- `configs/dataset_is_place.toml` の split は `train=2025-01..09`, `valid=2025-10..11`, `test=2025-12`
+- split 別件数は `train=35,780`, `valid=7,934`, `test=3,054`、`race_key` の split 跨ぎは `0`
+
+build コマンド:
+
+```bash
+PYTHONPATH=src python -m horse_bet_lab.dataset.cli --config configs/dataset_minimal.toml
+```
+
+`pip install -e ".[dev]"` 後はコンソールスクリプトも使えます。
+
+```bash
+horse-bet-lab-dataset-build --config configs/dataset_minimal.toml
+```
+
+結果系 target のサンプル config:
+
+```bash
+horse-bet-lab-dataset-build --config configs/dataset_is_place.toml
+```
+
+odds-only baseline 用 config:
+
+```bash
+horse-bet-lab-dataset-build --config configs/dataset_odds_only_is_place.toml
+```
+
+## Baseline Model
+
+最初のベースラインは `odds_only` dataset を使う Logistic Regression です。現時点では
+`win_odds` だけを feature とし、target は `is_place` を使います。
+
+学習 config は [configs/model_odds_only_logreg_is_place.toml](/Users/matsurimbpblack/Library/Mobile Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/model_odds_only_logreg_is_place.toml:1) です。
+
+学習コマンド:
+
+```bash
+PYTHONPATH=src python -m horse_bet_lab.model.cli --config configs/model_odds_only_logreg_is_place.toml
+```
+
+`pip install -e ".[dev]"` 後はコンソールスクリプトも使えます。
+
+```bash
+horse-bet-lab-model-train --config configs/model_odds_only_logreg_is_place.toml
+```
+
+出力先:
+
+- `data/artifacts/odds_only_logreg_is_place/metrics.json`
+- `data/artifacts/odds_only_logreg_is_place/predictions.csv`
+- `data/artifacts/odds_only_logreg_is_place/calibration.csv`
+
+評価指標:
+
+- AUC
+- logloss
+- Brier score
+- positive rate
+- 予測確率の平均・標準偏差・分位点
+- 10ビンの calibration 集計
+
+評価は `split` 列の `train / valid / test` ごとに分けて出力します。
+
+## Development
+
+仮想環境を有効化した状態で、以下の順に再現確認できます。
+
+```bash
+source .venv/bin/activate
+PYTHONPATH=src pytest
+ruff check .
+mypy .
+PYTHONPATH=src python -m horse_bet_lab.runner --config configs/default.toml
+PYTHONPATH=src python -m horse_bet_lab.ingest.cli
+PYTHONPATH=src python -m horse_bet_lab.dataset.cli --config configs/dataset_minimal.toml
+PYTHONPATH=src python -m horse_bet_lab.model.cli --config configs/model_odds_only_logreg_is_place.toml
+```
+
+チェック手順を一本化したい場合は `make` を使えます。`Makefile` は `.venv` 内のコマンドを使うので、先に Setup を完了してください。
+
+```bash
+make check
+```
+
+個別コマンドも残しています。
+
+```bash
+make test
+make lint
+make typecheck
+make run
+make ingest
+make dataset
+make model
+```
+
+シェルだけで実行したい場合は補助スクリプトも使えます。
+
+```bash
+./scripts/run_checks.sh
+```

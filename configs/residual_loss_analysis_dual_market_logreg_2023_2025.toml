@@ -1,0 +1,7 @@
+[analysis]
+name = "residual_loss_analysis_dual_market_logreg_2023_2025"
+reference_guard_compare_config_path = "configs/reference_guard_compare_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/residual_loss_analysis_dual_market_logreg_2023_2025"
+baseline_variant = "baseline"
+guarded_variant = "problematic_band_excluded"
+representative_examples_per_regime = 3

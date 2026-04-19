@@ -1,0 +1,10 @@
+[training]
+name = "odds_log1p_plus_popularity_logreg_is_place"
+dataset_path = "data/processed/horse_dataset_odds_only_plus_popularity_is_place.parquet"
+model_name = "logistic_regression"
+feature_columns = ["win_odds", "popularity"]
+feature_transforms = ["log1p", "identity"]
+target_column = "target_value"
+split_column = "split"
+output_dir = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place"
+max_iter = 1000

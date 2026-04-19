@@ -1,0 +1,22 @@
+[analysis]
+name = "reference_stake_sizing_compare_dual_market_logreg_2023_2025"
+reference_label_guard_compare_config_path = "configs/reference_label_guard_compare_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/reference_stake_sizing_compare_dual_market_logreg_2023_2025"
+stake_variants = [
+  "flat_100",
+  "capped_fractional_kelly_like",
+  "capped_fractional_kelly_like_per_race_cap",
+  "capped_fractional_kelly_like_per_day_cap",
+  "capped_fractional_kelly_like_drawdown_reduction",
+]
+edge_small_base_stake = 100
+edge_small_step_stake = 100
+edge_small_step_edge = 0.04
+edge_small_max_stake = 300
+kelly_bankroll = 5000
+kelly_fraction = 0.25
+kelly_cap_stake = 500
+per_race_cap_stake = 300
+per_day_cap_stake = 800
+drawdown_reduction_threshold = 500
+drawdown_reduction_factor = 0.5

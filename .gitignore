@@ -1,0 +1,16 @@
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+dist/
+build/
+*.pyc
+__pycache__/
+data/raw/jrdb/*
+!data/raw/jrdb/.gitkeep
+data/staging/*
+!data/staging/.gitkeep
+data/artifacts/*
+!data/artifacts/.gitkeep
+data/processed/*
+!data/processed/.gitkeep

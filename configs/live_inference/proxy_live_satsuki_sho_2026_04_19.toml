@@ -1,0 +1,28 @@
+[live_inference]
+name = "proxy_live_satsuki_sho_2026_04_19"
+race_name = "皐月賞・Ｇ１"
+race_date = "2026-04-19"
+input_path = "data/live_inference/proxy_live_satsuki_sho_2026_04_19/input.csv"
+output_path = "data/artifacts/live_inference/proxy_live_satsuki_sho_2026_04_19/scores.csv"
+input_source = "Public pre-race odds page (win odds, popularity, place odds range)"
+source_url = "https://www.keibalab.jp/db/race/202604190611/odds.html"
+source_timestamp = "2026-04-18T07:50:00+09:00"
+proxy_rule = "place_basis_odds_proxy = (place_odds_min + place_odds_max) / 2"
+caveat = [
+  "proxy_score is a relative ranking score and must not be interpreted as a calibrated probability",
+  "JRDB OZ is not used; public place odds range midpoint proxy is used instead",
+  "do not compare this output side-by-side with mainline backtest or research scores",
+]
+
+[live_inference.reference_model]
+dataset_path = "data/artifacts/dual_market_reference_comparison_2023_2025/dual_market_logreg/dataset.parquet"
+historical_duckdb_path = "data/artifacts/jrdb_2023_2025_supported_full.duckdb"
+model_name = "logistic_regression"
+feature_columns = ["win_odds", "place_basis_odds", "popularity"]
+feature_transforms = ["log1p", "log1p", "identity"]
+target_column = "target_value"
+split_column = "split"
+training_splits = ["train", "valid", "test"]
+max_iter = 1000
+model_params = {}
+live_feature_aliases = { place_basis_odds = "place_basis_odds_proxy" }

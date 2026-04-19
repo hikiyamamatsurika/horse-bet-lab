@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "horse-bet-lab"
+version = "0.1.0"
+description = "Experiment platform for horse racing prediction and backtesting."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "duckdb>=1.1",
+  "scikit-learn>=1.5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.10",
+  "pytest>=8.2",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+horse-bet-lab-dataset-build = "horse_bet_lab.dataset.cli:main"
+horse-bet-lab-bet-eval = "horse_bet_lab.evaluation.cli:main"
+horse-bet-lab-bet-set-diff = "horse_bet_lab.evaluation.bet_set_diff_cli:main"
+horse-bet-lab-calibration-drift = "horse_bet_lab.evaluation.calibration_drift_cli:main"
+horse-bet-lab-ranking-score-diff = "horse_bet_lab.evaluation.ranking_score_diff_cli:main"
+horse-bet-lab-ranking-rule-compare = "horse_bet_lab.evaluation.ranking_rule_rollforward_cli:main"
+horse-bet-lab-reference-guard-compare = "horse_bet_lab.evaluation.reference_guard_compare_cli:main"
+horse-bet-lab-reference-label-guard-compare = "horse_bet_lab.evaluation.reference_label_guard_compare_cli:main"
+horse-bet-lab-reference-label-guard-null-test = "horse_bet_lab.evaluation.reference_label_guard_null_test_cli:main"
+horse-bet-lab-reference-label-guard-uncertainty = "horse_bet_lab.evaluation.reference_label_guard_uncertainty_cli:main"
+horse-bet-lab-reference-bankroll-simulation = "horse_bet_lab.evaluation.reference_bankroll_simulation_cli:main"
+horse-bet-lab-reference-bankroll-simulation-uncertainty = "horse_bet_lab.evaluation.reference_bankroll_simulation_uncertainty_cli:main"
+horse-bet-lab-reference-per-race-cap-sensitivity = "horse_bet_lab.evaluation.reference_per_race_cap_sensitivity_cli:main"
+horse-bet-lab-reference-per-race-cap-drawdown-compare = "horse_bet_lab.evaluation.reference_per_race_cap_drawdown_compare_cli:main"
+horse-bet-lab-mainline-block-sensitivity = "horse_bet_lab.evaluation.mainline_block_sensitivity_cli:main"
+horse-bet-lab-reference-pack = "horse_bet_lab.evaluation.reference_pack_cli:main"
+horse-bet-lab-reference-pack-verify = "horse_bet_lab.evaluation.reference_pack_verify_cli:main"
+horse-bet-lab-reference-stake-sizing-compare = "horse_bet_lab.evaluation.reference_stake_sizing_compare_cli:main"
+horse-bet-lab-reference-stake-sizing-uncertainty = "horse_bet_lab.evaluation.reference_stake_sizing_uncertainty_cli:main"
+horse-bet-lab-reference-regime-label-diff = "horse_bet_lab.evaluation.reference_regime_label_diff_cli:main"
+horse-bet-lab-residual-loss-analysis = "horse_bet_lab.evaluation.residual_loss_analysis_cli:main"
+horse-bet-lab-second-guard-selection = "horse_bet_lab.evaluation.second_guard_selection_cli:main"
+horse-bet-lab-reference-uncertainty = "horse_bet_lab.evaluation.reference_uncertainty_cli:main"
+horse-bet-lab-regime-diff = "horse_bet_lab.evaluation.regime_diff_cli:main"
+horse-bet-lab-within-band-regime-diff = "horse_bet_lab.evaluation.within_band_regime_diff_cli:main"
+horse-bet-lab-ingest = "horse_bet_lab.ingest.cli:main"
+horse-bet-lab-model-train = "horse_bet_lab.model.cli:main"
+horse-bet-lab-model-compare = "horse_bet_lab.model.comparison_cli:main"
+horse-bet-lab-place-backtest = "horse_bet_lab.evaluation.place_cli:main"
+horse-bet-lab-wide-research-backtest = "horse_bet_lab.evaluation.wide_research_cli:main"
+horse-bet-lab-wide-research-diff = "horse_bet_lab.evaluation.wide_research_diff_cli:main"
+horse-bet-lab-run = "horse_bet_lab.runner:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = ["src"]
+packages = ["horse_bet_lab"]

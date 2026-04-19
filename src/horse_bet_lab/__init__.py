@@ -1,0 +1,2 @@
+"""horse-bet-lab package."""
+

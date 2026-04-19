@@ -1,0 +1,23 @@
+[comparison]
+name = "single_win_market_comparison_2024_2025"
+duckdb_path = "data/artifacts/jrdb_2024_2025.duckdb"
+output_dir = "data/artifacts/single_win_market_comparison_2024_2025"
+start_date = "2024-01-01"
+end_date = "2025-12-31"
+target_name = "is_win"
+backtest_template_config_path = "configs/win_backtest_edge_inverse_win_odds_rollforward_retrain_2024_2025.toml"
+aggregate_selection_score_rule = "roi_then_bets"
+
+[[comparison.feature_sets]]
+name = "win_market_only"
+dataset_feature_set = "win_market_only"
+model_name = "logistic_regression"
+feature_columns = ["win_odds", "popularity"]
+feature_transforms = ["log1p", "identity"]
+
+[[comparison.feature_sets]]
+name = "dual_market_for_win"
+dataset_feature_set = "dual_market_for_win"
+model_name = "logistic_regression"
+feature_columns = ["win_odds", "place_basis_odds", "popularity"]
+feature_transforms = ["log1p", "log1p", "identity"]

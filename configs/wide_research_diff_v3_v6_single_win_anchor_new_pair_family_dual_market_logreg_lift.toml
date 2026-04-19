@@ -1,0 +1,14 @@
+[wide_research_diff]
+name = "wide_research_diff_v3_v6_single_win_anchor_new_pair_family_dual_market_logreg_lift"
+v2_selected_pairs_path = "data/artifacts/wide_research_v3_dual_market_logreg_lift/selected_pairs.csv"
+v3_selected_pairs_path = "data/artifacts/wide_research_v6_single_win_anchor_new_pair_family_dual_market_logreg_lift/selected_pairs.csv"
+v2_label = "v3"
+v3_label = "v6"
+output_dir = "data/artifacts/wide_research_diff_v3_v6_single_win_anchor_new_pair_family_dual_market_logreg_lift"
+split = "test"
+stake_per_pair = 100
+representative_example_count = 10
+v2_score_method = "pair_model_score"
+v2_pair_generation_method = "anchor_top1_partner_pred_times_place"
+v3_score_method = "anchor_plus_partner_edge_like"
+v3_pair_generation_method = "v6_win_edge_top1_partner_pred_times_place"

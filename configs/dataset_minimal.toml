@@ -1,0 +1,7 @@
+[dataset]
+name = "horse_dataset_minimal"
+start_date = "2025-02-01"
+end_date = "2025-02-28"
+target_name = "workout_gap_days"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_path = "data/processed/horse_dataset_minimal.parquet"

@@ -1,0 +1,6 @@
+[analysis]
+name = "reference_stake_sizing_uncertainty_dual_market_logreg_2023_2025"
+reference_stake_sizing_compare_config_path = "configs/reference_stake_sizing_compare_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/reference_stake_sizing_uncertainty_dual_market_logreg_2023_2025"
+bootstrap_iterations = 2000
+random_seed = 42

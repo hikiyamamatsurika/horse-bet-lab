@@ -1,0 +1,10 @@
+[analysis]
+name = "reference_label_guard_compare_dual_market_logreg_2023_2025"
+second_guard_selection_config_path = "configs/second_guard_selection_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/reference_label_guard_compare_dual_market_logreg_2023_2025"
+extra_guard_variants = [
+  "no_extra_label_guard",
+  "popularity_3_4_excluded",
+  "month_07_08_excluded",
+  "popularity_3_4_or_month_07_08_excluded",
+]

@@ -1,0 +1,8 @@
+[analysis]
+name = "ranking_rule_compare_dual_market_logreg_2024_2025"
+base_backtest_config_path = "configs/place_backtest_edge_oz_place_basis_dual_market_robustness_2024_2025.toml"
+rolling_predictions_path = "data/artifacts/dual_market_small_market_feature_comparison_2024_2025/dual_market_logreg/backtest/rolling_predictions.csv"
+output_dir = "data/artifacts/ranking_rule_compare_dual_market_logreg_2024_2025"
+aggregate_selection_score_rule = "positive_window_count_then_mean_roi_then_min_roi"
+min_bets_valid = 10
+ranking_score_rules = ["edge", "pred_times_place_basis_odds"]

@@ -1,0 +1,5 @@
+[evaluation]
+name = "bet_eval_odds_log1p_plus_popularity_threshold_sweep"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+output_dir = "data/artifacts/bet_eval_odds_log1p_plus_popularity_threshold_sweep"
+thresholds = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50]

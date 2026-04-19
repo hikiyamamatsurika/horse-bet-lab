@@ -1,0 +1,21 @@
+[wide_research_v3]
+name = "wide_research_v3_dual_market_logreg_lift"
+predictions_path = "data/artifacts/dual_market_reference_comparison_2023_2025/dual_market_logreg/backtest/rolling_predictions.csv"
+hjc_raw_dir = "data/raw/jrdb"
+output_dir = "data/artifacts/wide_research_v3_dual_market_logreg_lift"
+score_methods = [
+  "pair_model_score",
+]
+pair_generation_methods = [
+  "anchor_top1_partner_place_edge",
+  "anchor_top1_partner_pred_times_place",
+  "anchor_top2_partner_reference_mix",
+]
+candidate_top_k_values = [4]
+adopted_pair_count_values = [1]
+stake_per_pair = 100
+bootstrap_iterations = 2000
+random_seed = 7
+split_column = "split"
+probability_column = "pred_probability"
+window_label_column = "window_label"

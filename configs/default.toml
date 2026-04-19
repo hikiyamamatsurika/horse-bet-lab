@@ -1,0 +1,7 @@
+[experiment]
+name = "baseline_dummy"
+model = "dummy"
+feature_set = "minimal"
+strategy = "flat"
+period = "2020-01-01_to_2020-12-31"
+

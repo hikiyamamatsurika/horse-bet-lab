@@ -1,0 +1,10 @@
+[analysis]
+name = "second_guard_selection_dual_market_logreg_2023_2025"
+reference_guard_compare_config_path = "configs/reference_guard_compare_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/second_guard_selection_dual_market_logreg_2023_2025"
+first_guard_variant = "problematic_band_excluded"
+second_guard_variants = [
+  "no_second_guard",
+  "problematic_band_excluded_edge_lt_0_06_excluded",
+  "problematic_band_excluded_win_odds_lt_5_excluded",
+]

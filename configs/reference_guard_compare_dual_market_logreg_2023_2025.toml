@@ -1,0 +1,11 @@
+[analysis]
+name = "reference_guard_compare_dual_market_logreg_2023_2025"
+reference_strategy_config_path = "configs/reference_strategy_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/reference_guard_compare_dual_market_logreg_2023_2025"
+problematic_min_popularity = 3
+problematic_max_popularity = 3
+problematic_min_place_basis_odds = 2.4
+problematic_max_place_basis_odds = 2.8
+edge_surcharges = [0.02, 0.04, 0.06]
+exclude_win_odds_below = 5.0
+exclude_edge_below = 0.06

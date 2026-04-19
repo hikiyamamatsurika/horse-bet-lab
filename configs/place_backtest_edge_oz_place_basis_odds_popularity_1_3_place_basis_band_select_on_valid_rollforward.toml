@@ -1,0 +1,60 @@
+[backtest]
+name = "place_backtest_edge_oz_place_basis_odds_popularity_1_3_place_basis_band_select_on_valid_rollforward"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_dir = "data/artifacts/place_backtest_edge_oz_place_basis_odds_popularity_1_3_place_basis_band_select_on_valid_rollforward"
+selection_metric = "edge"
+market_prob_method = "oz_place_basis_inverse"
+thresholds = [0.02, 0.04, 0.06, 0.08, 0.10]
+stake_per_bet = 100
+min_bets_valid = 10
+min_bets_valid_values = [10, 15, 20]
+
+[[backtest.popularity_bands]]
+min = 1
+max = 3
+
+[[backtest.place_basis_bands]]
+min = 1.8
+max = 2.8
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 2.8
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 3.0
+
+[[backtest.place_basis_bands]]
+min = 2.2
+max = 3.0
+
+[[backtest.place_basis_bands]]
+min = 2.2
+max = 3.2
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 3.5
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_09_to_10"
+valid_start_date = "2025-09-01"
+valid_end_date = "2025-09-30"
+test_start_date = "2025-10-01"
+test_end_date = "2025-10-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_10_to_11"
+valid_start_date = "2025-10-01"
+valid_end_date = "2025-10-31"
+test_start_date = "2025-11-01"
+test_end_date = "2025-11-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_11_to_12"
+valid_start_date = "2025-11-01"
+valid_end_date = "2025-11-30"
+test_start_date = "2025-12-01"
+test_end_date = "2025-12-31"

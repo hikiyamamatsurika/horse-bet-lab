@@ -1,0 +1,6 @@
+[console_scripts]
+horse-bet-lab-dataset-build = horse_bet_lab.dataset.cli:main
+horse-bet-lab-ingest = horse_bet_lab.ingest.cli:main
+horse-bet-lab-model-train = horse_bet_lab.model.cli:main
+horse-bet-lab-wide-research-backtest = horse_bet_lab.evaluation.wide_research_cli:main
+horse-bet-lab-run = horse_bet_lab.runner:main

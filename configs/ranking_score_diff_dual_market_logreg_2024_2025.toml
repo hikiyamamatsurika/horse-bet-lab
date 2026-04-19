@@ -1,0 +1,18 @@
+[analysis]
+name = "ranking_score_diff_dual_market_logreg_2024_2025"
+duckdb_path = "data/artifacts/jrdb_2024_2025_supported.duckdb"
+backtest_dir = "data/artifacts/dual_market_small_market_feature_comparison_2024_2025/dual_market_logreg/backtest"
+output_dir = "data/artifacts/ranking_score_diff_dual_market_logreg_2024_2025"
+selection_metric = "edge"
+aggregate_selection_score_rule = "positive_window_count_then_mean_roi_then_min_roi"
+min_bets_valid = 10
+split_column = "split"
+target_column = "target_value"
+probability_column = "pred_probability"
+stake_per_bet = 100.0
+ranking_scores = [
+  "edge",
+  "edge_times_place_basis_odds",
+  "pred_times_place_basis_odds",
+  "edge_div_place_basis_odds",
+]

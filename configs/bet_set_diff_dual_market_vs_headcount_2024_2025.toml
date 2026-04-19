@@ -1,0 +1,19 @@
+[analysis]
+name = "bet_set_diff_dual_market_vs_headcount_2024_2025"
+duckdb_path = "data/artifacts/jrdb_2024_2025.duckdb"
+comparison_root_dir = "data/artifacts/dual_market_small_market_feature_comparison_2024_2025"
+output_dir = "data/artifacts/bet_set_diff_dual_market_vs_headcount_2024_2025"
+selection_metric = "edge"
+market_prob_method = "oz_place_basis_inverse"
+split_column = "split"
+target_column = "target_value"
+probability_column = "pred_probability"
+stake_per_bet = 100
+
+[[analysis.comparisons]]
+baseline_feature_set = "dual_market_logreg"
+variant_feature_set = "dual_market_plus_headcount_place_slots_logreg"
+
+[[analysis.comparisons]]
+baseline_feature_set = "dual_market_logreg"
+variant_feature_set = "dual_market_plus_headcount_logreg"

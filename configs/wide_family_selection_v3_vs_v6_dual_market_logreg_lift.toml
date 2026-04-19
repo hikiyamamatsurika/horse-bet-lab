@@ -1,0 +1,21 @@
+[wide_family_selection]
+name = "wide_family_selection_v3_vs_v6_dual_market_logreg_lift"
+v3_summary_path = "data/artifacts/wide_research_v3_dual_market_logreg_lift/summary.csv"
+v3_selected_pairs_path = "data/artifacts/wide_research_v3_dual_market_logreg_lift/selected_pairs.csv"
+v6_summary_path = "data/artifacts/wide_research_v6_single_win_anchor_new_pair_family_dual_market_logreg_lift/summary.csv"
+v6_selected_pairs_path = "data/artifacts/wide_research_v6_single_win_anchor_new_pair_family_dual_market_logreg_lift/selected_pairs.csv"
+v3_label = "v3"
+v6_label = "v6"
+output_dir = "data/artifacts/wide_family_selection_v3_vs_v6_dual_market_logreg_lift"
+split = "test"
+valid_split = "valid"
+stake_per_pair = 100
+selection_rules = [
+  "total_valid_roi_max",
+  "window_win_count_max",
+  "mean_valid_roi_minus_std",
+]
+v3_score_method = "pair_model_score"
+v3_pair_generation_method = "anchor_top1_partner_pred_times_place"
+v6_score_method = "anchor_plus_partner_edge_like"
+v6_pair_generation_method = "v6_win_edge_top1_partner_pred_times_place"

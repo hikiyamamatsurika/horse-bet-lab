@@ -1,0 +1,9 @@
+[backtest]
+name = "place_backtest_odds_log1p_plus_popularity_threshold_sweep_odds_band_5_50"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_dir = "data/artifacts/place_backtest_odds_log1p_plus_popularity_threshold_sweep_odds_band_5_50"
+thresholds = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50]
+min_win_odds = 5.0
+max_win_odds = 50.0
+stake_per_bet = 100

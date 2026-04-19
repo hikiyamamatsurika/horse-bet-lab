@@ -1,0 +1,11 @@
+[dataset]
+name = "horse_dataset_odds_only_plus_popularity_is_place"
+start_date = "2025-01-01"
+end_date = "2025-12-31"
+train_end_date = "2025-09-30"
+valid_end_date = "2025-11-30"
+feature_set = "odds_only"
+include_popularity = true
+target_name = "is_place"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_path = "data/processed/horse_dataset_odds_only_plus_popularity_is_place.parquet"

@@ -1,0 +1,9 @@
+[backtest]
+name = "place_backtest_edge_oz_place_basis_odds_log1p_plus_popularity"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_dir = "data/artifacts/place_backtest_edge_oz_place_basis_odds_log1p_plus_popularity"
+selection_metric = "edge"
+market_prob_method = "oz_place_basis_inverse"
+thresholds = [0.00, 0.02, 0.05, 0.10]
+stake_per_bet = 100

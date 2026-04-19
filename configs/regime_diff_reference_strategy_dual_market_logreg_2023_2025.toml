@@ -1,0 +1,15 @@
+[analysis]
+name = "regime_diff_reference_strategy_dual_market_logreg_2023_2025"
+reference_strategy_config_path = "configs/reference_strategy_dual_market_logreg_2023_2025.toml"
+output_dir = "data/artifacts/regime_diff_reference_strategy_dual_market_logreg_2023_2025"
+representative_examples_per_regime = 3
+
+[[analysis.regimes]]
+label = "2023"
+start_date = "2023-01-01"
+end_date = "2023-12-31"
+
+[[analysis.regimes]]
+label = "2024_2025"
+start_date = "2024-01-01"
+end_date = "2025-12-31"

@@ -1,0 +1,24 @@
+[backtest]
+name = "place_backtest_odds_log1p_plus_popularity_popularity_4_6_rollforward_oos"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_dir = "data/artifacts/place_backtest_odds_log1p_plus_popularity_popularity_4_6_rollforward_oos"
+thresholds = [0.35, 0.40, 0.45]
+min_popularity = 4
+max_popularity = 6
+stake_per_bet = 100
+
+[[backtest.evaluation_windows]]
+label = "2025_10"
+start_date = "2025-10-01"
+end_date = "2025-10-31"
+
+[[backtest.evaluation_windows]]
+label = "2025_11"
+start_date = "2025-11-01"
+end_date = "2025-11-30"
+
+[[backtest.evaluation_windows]]
+label = "2025_12"
+start_date = "2025-12-01"
+end_date = "2025-12-31"

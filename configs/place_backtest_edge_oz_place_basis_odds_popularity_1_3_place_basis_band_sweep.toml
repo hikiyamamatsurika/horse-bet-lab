@@ -1,0 +1,55 @@
+[backtest]
+name = "place_backtest_edge_oz_place_basis_odds_popularity_1_3_place_basis_band_sweep"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+duckdb_path = "data/artifacts/jrdb.duckdb"
+output_dir = "data/artifacts/place_backtest_edge_oz_place_basis_odds_popularity_1_3_place_basis_band_sweep"
+selection_metric = "edge"
+market_prob_method = "oz_place_basis_inverse"
+thresholds = [0.02, 0.04, 0.06, 0.08, 0.10]
+stake_per_bet = 100
+
+[[backtest.popularity_bands]]
+min = 1
+max = 3
+
+[[backtest.place_basis_bands]]
+min = 1.8
+max = 2.8
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 2.8
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 3.0
+
+[[backtest.place_basis_bands]]
+min = 2.2
+max = 3.0
+
+[[backtest.place_basis_bands]]
+min = 2.2
+max = 3.2
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 3.5
+
+[[backtest.evaluation_windows]]
+label = "all_2025"
+
+[[backtest.evaluation_windows]]
+label = "2025_10"
+start_date = "2025-10-01"
+end_date = "2025-10-31"
+
+[[backtest.evaluation_windows]]
+label = "2025_11"
+start_date = "2025-11-01"
+end_date = "2025-11-30"
+
+[[backtest.evaluation_windows]]
+label = "2025_12"
+start_date = "2025-12-01"
+end_date = "2025-12-31"

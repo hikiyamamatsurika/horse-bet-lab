@@ -1,0 +1,266 @@
+[backtest]
+name = "place_backtest_edge_oz_place_basis_dual_market_robustness_2024_2025"
+predictions_path = "data/artifacts/odds_log1p_plus_popularity_logreg_is_place/predictions.csv"
+duckdb_path = "data/artifacts/jrdb_2024_2025.duckdb"
+output_dir = "data/artifacts/place_backtest_edge_oz_place_basis_dual_market_robustness_2024_2025"
+selection_metric = "edge"
+market_prob_method = "oz_place_basis_inverse"
+thresholds = [0.04, 0.06, 0.08, 0.10, 0.12]
+stake_per_bet = 100
+min_bets_valid = 10
+aggregate_selection_score_rules = [
+  "mean_valid_roi_minus_std",
+  "positive_window_count_then_mean_roi_then_min_roi",
+  "min_valid_roi_then_mean_roi",
+]
+
+[[backtest.popularity_bands]]
+min = 1
+max = 3
+
+[[backtest.place_basis_bands]]
+min = 1.8
+max = 2.8
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 2.8
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 3.0
+
+[[backtest.place_basis_bands]]
+min = 2.2
+max = 3.0
+
+[[backtest.place_basis_bands]]
+min = 2.2
+max = 3.2
+
+[[backtest.place_basis_bands]]
+min = 2.0
+max = 3.5
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_06_to_07"
+valid_start_date = "2024-06-01"
+valid_end_date = "2024-06-30"
+test_start_date = "2024-07-01"
+test_end_date = "2024-07-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_07_to_08"
+valid_start_date = "2024-07-01"
+valid_end_date = "2024-07-31"
+test_start_date = "2024-08-01"
+test_end_date = "2024-08-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_08_to_09"
+valid_start_date = "2024-08-01"
+valid_end_date = "2024-08-31"
+test_start_date = "2024-09-01"
+test_end_date = "2024-09-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_09_to_10"
+valid_start_date = "2024-09-01"
+valid_end_date = "2024-09-30"
+test_start_date = "2024-10-01"
+test_end_date = "2024-10-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_10_to_11"
+valid_start_date = "2024-10-01"
+valid_end_date = "2024-10-31"
+test_start_date = "2024-11-01"
+test_end_date = "2024-11-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_11_to_12"
+valid_start_date = "2024-11-01"
+valid_end_date = "2024-11-30"
+test_start_date = "2024-12-01"
+test_end_date = "2024-12-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2024_12_to_2025_01"
+valid_start_date = "2024-12-01"
+valid_end_date = "2024-12-31"
+test_start_date = "2025-01-01"
+test_end_date = "2025-01-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_01_to_02"
+valid_start_date = "2025-01-01"
+valid_end_date = "2025-01-31"
+test_start_date = "2025-02-01"
+test_end_date = "2025-02-28"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_02_to_03"
+valid_start_date = "2025-02-01"
+valid_end_date = "2025-02-28"
+test_start_date = "2025-03-01"
+test_end_date = "2025-03-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_03_to_04"
+valid_start_date = "2025-03-01"
+valid_end_date = "2025-03-31"
+test_start_date = "2025-04-01"
+test_end_date = "2025-04-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_04_to_05"
+valid_start_date = "2025-04-01"
+valid_end_date = "2025-04-30"
+test_start_date = "2025-05-01"
+test_end_date = "2025-05-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_05_to_06"
+valid_start_date = "2025-05-01"
+valid_end_date = "2025-05-31"
+test_start_date = "2025-06-01"
+test_end_date = "2025-06-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_06_to_07"
+valid_start_date = "2025-06-01"
+valid_end_date = "2025-06-30"
+test_start_date = "2025-07-01"
+test_end_date = "2025-07-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_07_to_08"
+valid_start_date = "2025-07-01"
+valid_end_date = "2025-07-31"
+test_start_date = "2025-08-01"
+test_end_date = "2025-08-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_08_to_09"
+valid_start_date = "2025-08-01"
+valid_end_date = "2025-08-31"
+test_start_date = "2025-09-01"
+test_end_date = "2025-09-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_09_to_10"
+valid_start_date = "2025-09-01"
+valid_end_date = "2025-09-30"
+test_start_date = "2025-10-01"
+test_end_date = "2025-10-31"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_10_to_11"
+valid_start_date = "2025-10-01"
+valid_end_date = "2025-10-31"
+test_start_date = "2025-11-01"
+test_end_date = "2025-11-30"
+
+[[backtest.evaluation_window_pairs]]
+label = "2025_11_to_12"
+valid_start_date = "2025-11-01"
+valid_end_date = "2025-11-30"
+test_start_date = "2025-12-01"
+test_end_date = "2025-12-31"
+
+[[backtest.selection_window_groups]]
+label = "test_2024_07"
+valid_window_labels = ["2024_06_to_07"]
+test_window_label = "2024_06_to_07"
+
+[[backtest.selection_window_groups]]
+label = "test_2024_08"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08"]
+test_window_label = "2024_07_to_08"
+
+[[backtest.selection_window_groups]]
+label = "test_2024_09"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09"]
+test_window_label = "2024_08_to_09"
+
+[[backtest.selection_window_groups]]
+label = "test_2024_10"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10"]
+test_window_label = "2024_09_to_10"
+
+[[backtest.selection_window_groups]]
+label = "test_2024_11"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11"]
+test_window_label = "2024_10_to_11"
+
+[[backtest.selection_window_groups]]
+label = "test_2024_12"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12"]
+test_window_label = "2024_11_to_12"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_01"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01"]
+test_window_label = "2024_12_to_2025_01"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_02"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02"]
+test_window_label = "2025_01_to_02"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_03"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03"]
+test_window_label = "2025_02_to_03"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_04"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04"]
+test_window_label = "2025_03_to_04"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_05"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05"]
+test_window_label = "2025_04_to_05"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_06"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06"]
+test_window_label = "2025_05_to_06"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_07"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06", "2025_06_to_07"]
+test_window_label = "2025_06_to_07"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_08"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06", "2025_06_to_07", "2025_07_to_08"]
+test_window_label = "2025_07_to_08"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_09"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06", "2025_06_to_07", "2025_07_to_08", "2025_08_to_09"]
+test_window_label = "2025_08_to_09"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_10"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06", "2025_06_to_07", "2025_07_to_08", "2025_08_to_09", "2025_09_to_10"]
+test_window_label = "2025_09_to_10"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_11"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06", "2025_06_to_07", "2025_07_to_08", "2025_08_to_09", "2025_09_to_10", "2025_10_to_11"]
+test_window_label = "2025_10_to_11"
+
+[[backtest.selection_window_groups]]
+label = "test_2025_12"
+valid_window_labels = ["2024_06_to_07", "2024_07_to_08", "2024_08_to_09", "2024_09_to_10", "2024_10_to_11", "2024_11_to_12", "2024_12_to_2025_01", "2025_01_to_02", "2025_02_to_03", "2025_03_to_04", "2025_04_to_05", "2025_05_to_06", "2025_06_to_07", "2025_07_to_08", "2025_08_to_09", "2025_09_to_10", "2025_10_to_11", "2025_11_to_12"]
+test_window_label = "2025_11_to_12"
+
+[rolling_retrain]
+dataset_path = "data/processed/horse_dataset_dual_market_is_place_2024_2025.parquet"
+feature_columns = ["win_odds", "place_basis_odds", "popularity"]
+feature_transforms = ["log1p", "log1p", "identity"]
+race_date_column = "race_date"
+max_iter = 1000
