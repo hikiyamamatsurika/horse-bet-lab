@@ -20,6 +20,8 @@
 
 - sample config:
   - [configs/place_forward_test_phase1.sample.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1.sample.toml)
+- runtime config example:
+  - [configs/place_forward_test_phase1_mainline.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline.toml)
 - contract spec:
   - [docs/spec/place_forward_test_contract_v1.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/spec/place_forward_test_contract_v1.md)
 
@@ -65,6 +67,7 @@ optional columns:
   - `popularity_input_source`
   - `popularity_contract_status=unresolved_auxiliary`
 - `popularity` が無いことだけでは `no_bet` にしません
+- standard Phase 1 path では、`popularity` unresolved を壊さないため、runtime config の model feature sequence も `popularity` 非依存に保つ
 - `snapshot_status` は次のどれかです
   - `ok`
   - `snapshot_failure`
