@@ -44,6 +44,10 @@ Phase 1 runner implementation は次を source of truth とする。
 - `horse_bet_lab.forward_test.runner`
 - CLI:
   - `python -m horse_bet_lab.forward_test.cli --config <path>`
+- sample config:
+  - `configs/place_forward_test_phase1.sample.toml`
+- minimal runbook:
+  - `docs/runbooks/place_forward_test_phase1_runbook.md`
 
 runner は次の順で処理する。
 
