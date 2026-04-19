@@ -61,6 +61,8 @@ Phase 1 では CSV schema 合意までを含める。WebUI 実装は Phase 3 に
 
 Phase 1 で先に固定しておく acceptance / contract は次のとおり。
 
+詳細 schema の source of truth は [docs/spec/place_forward_test_contract_v1.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/spec/place_forward_test_contract_v1.md:1) と `horse_bet_lab.forward_test.contracts` に置く。
+
 - popularity live input policy:
   - `popularity` carrier は unresolved のまま扱う
   - forward-test では `popularity` を required input にしない

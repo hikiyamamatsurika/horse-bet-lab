@@ -1,0 +1,9 @@
+# Sample config for place-only forward-test reconciliation.
+# Replace forward_output_dir / duckdb_path / output_dir / settled_as_of with your local values.
+
+[place_forward_reconciliation]
+name = "place_forward_test_reconciliation_sample"
+forward_output_dir = "data/artifacts/place_forward_test_phase1_sample"
+duckdb_path = "data/artifacts/jrdb_2023_2025_supported_full.duckdb"
+output_dir = "data/artifacts/place_forward_test_phase1_reconciliation_sample"
+settled_as_of = "2026-04-20T18:00:00+09:00"
