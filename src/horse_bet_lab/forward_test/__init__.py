@@ -13,6 +13,13 @@ from horse_bet_lab.forward_test.contracts import (
     validate_place_forward_input_record,
     validate_place_forward_input_records,
 )
+from horse_bet_lab.forward_test.runner import (
+    PlaceForwardRunResult,
+    PlaceForwardTestConfig,
+    build_parser,
+    load_config,
+    run_place_forward_test,
+)
 
 __all__ = [
     "PLACE_FORWARD_TEST_CONTRACT_VERSION",
@@ -25,7 +32,12 @@ __all__ = [
     "PlaceForwardBetDecisionRecord",
     "PlaceForwardInputRecord",
     "PlaceForwardPredictionOutputRecord",
+    "PlaceForwardRunResult",
+    "PlaceForwardTestConfig",
     "build_place_forward_artifact_provenance",
+    "build_parser",
+    "load_config",
+    "run_place_forward_test",
     "validate_place_forward_input_record",
     "validate_place_forward_input_records",
 ]

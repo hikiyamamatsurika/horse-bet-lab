@@ -37,6 +37,24 @@
 - output schema version:
   - `place_forward_test_output_v1`
 
+## Phase 1 Runner
+
+Phase 1 runner implementation は次を source of truth とする。
+
+- `horse_bet_lab.forward_test.runner`
+- CLI:
+  - `python -m horse_bet_lab.forward_test.cli --config <path>`
+
+runner は次の順で処理する。
+
+1. input contract load / validation
+2. snapshot-state-aware branching
+3. prediction
+4. bet decision
+5. artifact write
+
+`snapshot_status != ok` は silent skip ではなく、prediction を進めずに explicit `no_bet` artifact を出す。
+
 ## Input Contract
 
 Phase 1 の標準 input record は horse-level row として扱う。
