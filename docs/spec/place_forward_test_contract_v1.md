@@ -64,6 +64,8 @@ reconciliation implementation は次を source of truth とする。
 - `horse_bet_lab.forward_test.reconciliation`
 - CLI:
   - `python -m horse_bet_lab.forward_test.reconciliation_cli --config <path>`
+- sample config:
+  - `configs/place_forward_test_reconciliation.sample.toml`
 
 ## Input Contract
 

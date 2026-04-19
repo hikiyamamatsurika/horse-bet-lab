@@ -24,6 +24,8 @@
   - [configs/place_forward_test_phase1_mainline.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline.toml)
 - multi-race dry-run config example:
   - [configs/place_forward_test_phase1_mainline_multi_race.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_phase1_mainline_multi_race.toml)
+- reconciliation sample config:
+  - [configs/place_forward_test_reconciliation.sample.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/place_forward_test_reconciliation.sample.toml)
 - contract spec:
   - [docs/spec/place_forward_test_contract_v1.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/spec/place_forward_test_contract_v1.md)
 
@@ -106,6 +108,38 @@ multi-race dry-run の例:
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1_mainline_multi_race.toml
 ```
 
+## Minimal Phase 1 Operation Flow
+
+1. pre-race input CSV を確認する
+2. pre-race runner を実行する
+3. `bet_decision_records.csv` と `run_manifest.json` を確認する
+4. レース結果が確定したら reconciliation config を用意する
+5. reconciliation を実行する
+6. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
+
+pre-race mainline 例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1_mainline.toml
+```
+
+post-race reconciliation 例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli --config configs/place_forward_test_reconciliation.sample.toml
+```
+
+reconciliation config で最低限埋める項目:
+
+- `forward_output_dir`
+  - pre-race run の `output_dir`
+- `duckdb_path`
+  - `jrdb_sed_staging` と `jrdb_hjc_staging` が入った result-side source
+- `output_dir`
+  - reconciliation artifacts の出力先
+- `settled_as_of`
+  - operator が「どの時点まで結果確認済みか」を残したいときの任意メタデータ
+
 ## What Appears Under output_dir
 
 - `input_snapshot_records.csv`
@@ -158,6 +192,29 @@ reconciliation 後に結果と突合したい:
   - `total_simulated_payout`
   - `total_simulated_profit_loss`
   - `no_bet_reason_counts`
+
+## Reconciliation Status Reading Guide
+
+- `settled_hit`
+  - 当時 `bet` だった行に結果が付き、複勝的中として payout が確定した
+- `settled_miss`
+  - 当時 `bet` だった行に結果が付き、複勝不的中として損益が確定した
+- `settled_no_bet`
+  - 結果は確定したが、当時の decision は `no_bet` だった
+- `unsettled_result_pending`
+  - result-side source にまだ対象 `race_key + horse_number` が見つからず、結果未確定のまま残っている
+- `unsettled_result_incomplete`
+  - result-side row はあるが、finish/payout のどちらかが欠けていて settlement を確定できない
+
+見分け方の最短ルール:
+
+- pre-race の理由を見る:
+  - `bet_decision_records.csv` の `decision_reason` と `no_bet_reason`
+- post-race の確定状態を見る:
+  - `reconciled_records.csv` の `reconciliation_status`
+- snapshot failure 系と logic-filter 系を分ける:
+  - `no_bet_reason=logic_filtered` は logic 側
+  - `timeout`, `required_odds_missing`, `snapshot_failure`, `retry_exhausted` は snapshot failure 側
 
 ## Minimal Artifact Schema Notes
 
@@ -213,8 +270,17 @@ reconciliation 後に結果と突合したい:
 
 ## Operator Checklist
 
+pre-race:
+
 - input CSV header が contract と一致している
 - `odds_observation_timestamp` は timezone 付き ISO-8601
 - `snapshot_status=ok` の行には `win_odds` と `place_basis_odds` がある
 - `popularity` を入れたなら `unresolved_auxiliary` と source を一緒に残している
-- output は `bet_decision_records.csv` と `run_manifest.json` まで確認する
+- pre-race run 後に `bet_decision_records.csv` と `run_manifest.json` を確認する
+
+post-race:
+
+- reconciliation config の `forward_output_dir` が pre-race run の `output_dir` を指している
+- `duckdb_path` に `jrdb_sed_staging` と `jrdb_hjc_staging` が入っている
+- reconciliation 後に `reconciled_records.csv` と `reconciliation_summary.json` を確認する
+- `settled_*` と `unsettled_*` が想定どおり分かれているかを見る
