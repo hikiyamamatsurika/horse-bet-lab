@@ -41,8 +41,12 @@ def test_train_logistic_regression_baseline_writes_metrics_and_predictions(
     assert metrics_path.exists()
     assert predictions_path.exists()
     assert calibration_path.exists()
+    assert (predictions_path.with_name(f"{predictions_path.name}.provenance.json")).exists()
+    assert (calibration_path.with_name(f"{calibration_path.name}.provenance.json")).exists()
 
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert metrics["provenance"]["feature_contract_version"] == "v1"
+    assert metrics["provenance"]["model_feature_columns"] == ["win_odds"]
     assert metrics["training"]["feature_columns"] == ["win_odds"]
     assert metrics["training"]["feature_transforms"] == ["identity"]
     assert set(metrics["metrics"]) == {"train", "valid", "test"}

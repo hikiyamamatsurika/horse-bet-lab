@@ -18,6 +18,11 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
 )
 
 from horse_bet_lab.config import ModelTrainConfig
+from horse_bet_lab.features.provenance import (
+    build_feature_provenance_payload,
+    write_feature_provenance_sidecar,
+)
+from horse_bet_lab.features.registry import validate_model_feature_columns
 
 SPLIT_ORDER = ("train", "valid", "test")
 PREDICTION_COLUMNS = (
@@ -105,8 +110,40 @@ def train_logistic_regression_baseline(config: ModelTrainConfig) -> ModelTrainSu
         )
 
     write_metrics_artifact(config, model, metrics_by_split)
-    write_predictions_artifact(config.output_dir / "predictions.csv", prediction_rows)
-    write_calibration_artifact(config.output_dir / "calibration.csv", calibration_rows)
+    write_predictions_artifact(
+        config.output_dir / "predictions.csv",
+        prediction_rows,
+        provenance_payload=build_feature_provenance_payload(
+            artifact_kind="prediction_csv",
+            generated_by="horse_bet_lab.model.service.train_logistic_regression_baseline",
+            config_identifier=config.name,
+            model_feature_columns=config.feature_columns,
+            artifact_path=str(config.output_dir / "predictions.csv"),
+            extra={
+                "dataset_path": str(config.dataset_path),
+                "model_name": config.model_name,
+                "target_column": config.target_column,
+                "split_column": config.split_column,
+            },
+        ),
+    )
+    write_calibration_artifact(
+        config.output_dir / "calibration.csv",
+        calibration_rows,
+        provenance_payload=build_feature_provenance_payload(
+            artifact_kind="calibration_csv",
+            generated_by="horse_bet_lab.model.service.train_logistic_regression_baseline",
+            config_identifier=config.name,
+            model_feature_columns=config.feature_columns,
+            artifact_path=str(config.output_dir / "calibration.csv"),
+            extra={
+                "dataset_path": str(config.dataset_path),
+                "model_name": config.model_name,
+                "target_column": config.target_column,
+                "split_column": config.split_column,
+            },
+        ),
+    )
 
     return ModelTrainSummary(output_dir=config.output_dir, metrics_by_split=metrics_by_split)
 
@@ -224,7 +261,24 @@ def generate_rolling_pair_predictions(
                 ),
             )
 
-    write_predictions_artifact(output_path, prediction_rows)
+    write_predictions_artifact(
+        output_path,
+        prediction_rows,
+        provenance_payload=build_feature_provenance_payload(
+            artifact_kind="rolling_prediction_csv",
+            generated_by="horse_bet_lab.model.service.generate_rolling_pair_predictions",
+            config_identifier=output_path.stem,
+            model_feature_columns=feature_columns,
+            artifact_path=str(output_path),
+            extra={
+                "dataset_path": str(dataset_path),
+                "model_name": model_name,
+                "target_column": target_column,
+                "race_date_column": race_date_column,
+                "evaluation_window_pair_count": len(evaluation_window_pairs),
+            },
+        ),
+    )
     return output_path
 
 
@@ -241,52 +295,10 @@ def validate_model_feature_spec(
     feature_columns: tuple[str, ...],
     feature_transforms: tuple[str, ...],
 ) -> None:
-    supported_feature_sets = {
-        ("win_odds",),
-        ("win_odds", "popularity"),
-        ("place_basis_odds",),
-        ("place_basis_odds", "popularity"),
-        ("win_odds", "place_basis_odds", "popularity"),
-        ("win_odds", "place_basis_odds", "popularity", "headcount"),
-        ("win_odds", "place_basis_odds", "popularity", "headcount", "place_slot_count"),
-        (
-            "win_odds",
-            "place_basis_odds",
-            "popularity",
-            "headcount",
-            "place_slot_count",
-            "distance_m",
-        ),
-        ("win_odds", "place_basis_odds", "popularity", "log_place_minus_log_win"),
-        ("win_odds", "place_basis_odds", "popularity", "implied_place_prob", "implied_win_prob"),
-        (
-            "win_odds",
-            "place_basis_odds",
-            "popularity",
-            "implied_place_prob_minus_implied_win_prob",
-        ),
-        ("win_odds", "place_basis_odds", "popularity", "place_to_win_ratio"),
-        ("win_odds", "popularity", "workout_gap_days", "workout_weekday_code"),
-    }
-    if feature_columns not in supported_feature_sets:
-        raise ValueError(
-            "baseline model currently supports feature_columns=['win_odds'] "
-            "or ['win_odds', 'popularity'] "
-            "or ['place_basis_odds'] "
-            "or ['place_basis_odds', 'popularity'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', 'headcount'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', 'headcount', 'place_slot_count'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', 'headcount', "
-            "'place_slot_count', 'distance_m'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', 'log_place_minus_log_win'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', "
-            "'implied_place_prob', 'implied_win_prob'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', "
-            "'implied_place_prob_minus_implied_win_prob'] "
-            "or ['win_odds', 'place_basis_odds', 'popularity', 'place_to_win_ratio'] "
-            "or ['win_odds', 'popularity', 'workout_gap_days', 'workout_weekday_code'] only",
-        )
+    validate_model_feature_columns(
+        feature_columns,
+        context="model feature_columns",
+    )
     for column_name, transform_name in zip(
         feature_columns,
         feature_transforms,
@@ -598,6 +610,19 @@ def write_metrics_artifact(
             "max_iter": config.max_iter,
             "model_params": config.model_params,
         },
+        "provenance": build_feature_provenance_payload(
+            artifact_kind="training_metrics_json",
+            generated_by="horse_bet_lab.model.service.train_logistic_regression_baseline",
+            config_identifier=config.name,
+            model_feature_columns=config.feature_columns,
+            artifact_path=str(config.output_dir / "metrics.json"),
+            extra={
+                "dataset_path": str(config.dataset_path),
+                "model_name": config.model_name,
+                "target_column": config.target_column,
+                "split_column": config.split_column,
+            },
+        ),
         "model": model_payload,
         "metrics": {
             split_name: asdict(metrics)
@@ -610,14 +635,26 @@ def write_metrics_artifact(
     )
 
 
-def write_predictions_artifact(path: Path, rows: list[dict[str, object]]) -> None:
+def write_predictions_artifact(
+    path: Path,
+    rows: list[dict[str, object]],
+    *,
+    provenance_payload: dict[str, object] | None = None,
+) -> None:
     with path.open("w", encoding="utf-8", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=PREDICTION_COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
+    if provenance_payload is not None:
+        write_feature_provenance_sidecar(path, provenance_payload)
 
 
-def write_calibration_artifact(path: Path, rows: list[dict[str, object]]) -> None:
+def write_calibration_artifact(
+    path: Path,
+    rows: list[dict[str, object]],
+    *,
+    provenance_payload: dict[str, object] | None = None,
+) -> None:
     fieldnames = (
         "split",
         "bin_id",
@@ -631,6 +668,8 @@ def write_calibration_artifact(path: Path, rows: list[dict[str, object]]) -> Non
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    if provenance_payload is not None:
+        write_feature_provenance_sidecar(path, provenance_payload)
 
 
 def load_prediction_metrics(

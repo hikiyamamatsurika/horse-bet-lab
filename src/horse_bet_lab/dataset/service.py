@@ -11,74 +11,17 @@ from horse_bet_lab.dataset.targets import (
     result_target_filter_sql,
     target_definition,
 )
+from horse_bet_lab.features.registry import dataset_feature_columns
+from horse_bet_lab.features.provenance import (
+    build_feature_provenance_payload,
+    dataset_model_feature_columns,
+    write_feature_provenance_sidecar,
+)
 from horse_bet_lab.ingest.specs import CONFIRMED, SUPPORTED_FILE_SPECS, dataset_allowlist
 
 METADATA_COLUMNS = ("race_key", "horse_number", "race_date", "split", "target_name")
 TARGET_COLUMNS = ("target_value",)
 TARGET_SOURCE_COLUMNS = ("finish_position", "result_date")
-
-FEATURE_SET_COLUMNS = {
-    "minimal": ("distance_m", "race_name", "workout_weekday", "workout_date"),
-    "odds_only": ("win_odds",),
-    "win_market_only": ("win_odds", "popularity"),
-    "current_win_market": ("win_odds", "popularity"),
-    "place_market_only": ("place_basis_odds",),
-    "place_market_plus_popularity": ("place_basis_odds", "popularity"),
-    "dual_market": ("win_odds", "place_basis_odds", "popularity"),
-    "dual_market_for_win": ("win_odds", "place_basis_odds", "popularity"),
-    "dual_market_plus_headcount": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "headcount",
-    ),
-    "dual_market_plus_headcount_place_slots": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "headcount",
-        "place_slot_count",
-    ),
-    "dual_market_plus_headcount_place_slots_distance": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "headcount",
-        "place_slot_count",
-        "distance_m",
-    ),
-    "dual_market_plus_log_diff": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "log_place_minus_log_win",
-    ),
-    "dual_market_plus_implied_probs": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "implied_place_prob",
-        "implied_win_prob",
-    ),
-    "dual_market_plus_prob_diff": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "implied_place_prob_minus_implied_win_prob",
-    ),
-    "dual_market_plus_ratio": (
-        "win_odds",
-        "place_basis_odds",
-        "popularity",
-        "place_to_win_ratio",
-    ),
-    "market_plus_workout_minimal": (
-        "win_odds",
-        "popularity",
-        "workout_gap_days",
-        "workout_weekday_code",
-    ),
-}
 
 
 @dataclass(frozen=True)
@@ -102,6 +45,39 @@ def build_horse_dataset(config: DatasetBuildConfig) -> DatasetBuildSummary:
         if row_count is None:
             raise RuntimeError("failed to count dataset rows")
         validate_built_dataset(connection, config)
+        write_feature_provenance_sidecar(
+            config.output_path,
+            build_feature_provenance_payload(
+                artifact_kind="dataset_parquet",
+                generated_by="horse_bet_lab.dataset.service.build_horse_dataset",
+                config_identifier=config.name,
+                dataset_feature_set=config.feature_set,
+                include_popularity=config.include_popularity,
+                model_feature_columns=dataset_model_feature_columns(
+                    config.feature_set,
+                    include_popularity=config.include_popularity,
+                ),
+                artifact_path=str(config.output_path),
+                extra={
+                    "duckdb_path": str(config.duckdb_path),
+                    "target_name": config.target_name,
+                    "date_range": {
+                        "start_date": config.start_date.isoformat(),
+                        "end_date": config.end_date.isoformat(),
+                        "train_end_date": (
+                            config.train_end_date.isoformat()
+                            if config.train_end_date is not None
+                            else None
+                        ),
+                        "valid_end_date": (
+                            config.valid_end_date.isoformat()
+                            if config.valid_end_date is not None
+                            else None
+                        ),
+                    },
+                },
+            ),
+        )
         return DatasetBuildSummary(output_path=config.output_path, row_count=int(row_count[0]))
     finally:
         connection.close()
@@ -129,6 +105,12 @@ def dataset_query(config: DatasetBuildConfig) -> str:
         return market_feature_dataset_query(config)
 
     definition = target_definition(config.target_name)
+    extra_joins = ()
+    if config.feature_set == "market_plus_workout_minimal":
+        extra_joins = (
+            "LEFT JOIN jrdb_win_market_snapshot_v1 w "
+            "ON c.race_key = w.race_key AND c.horse_number = w.horse_number",
+        )
     select_parts = [
         "c.race_key AS race_key",
         "c.horse_number AS horse_number",
@@ -146,6 +128,7 @@ def dataset_query(config: DatasetBuildConfig) -> str:
         INNER JOIN jrdb_bac_staging b
             ON c.race_key = b.race_key
         {definition.join_sql}
+        {" ".join(extra_joins)}
         WHERE b.race_date BETWEEN DATE '{config.start_date.isoformat()}'
             AND DATE '{config.end_date.isoformat()}'
             AND {definition.filter_sql}
@@ -159,16 +142,16 @@ def odds_only_dataset_query(config: DatasetBuildConfig) -> str:
             "odds_only feature_set currently supports target_name='is_place' or 'is_win' only",
         )
 
-    sed_columns = selected_columns("SED", allowed_statuses=(CONFIRMED, "provisional"))
     select_parts = [
         "r.race_key AS race_key",
         "r.horse_number AS horse_number",
         "r.result_date AS race_date",
         f"{split_case_sql(config, table_alias='r', date_column='result_date')} AS split",
         f"'{config.target_name}' AS target_name",
-        f"TRY_CAST(r.{sed_columns['win_odds']} AS DOUBLE) AS win_odds",
+        "w.win_odds AS win_odds",
     ]
     if config.include_popularity:
+        sed_columns = selected_columns("SED", allowed_statuses=(CONFIRMED, "provisional"))
         select_parts.append(f"r.{sed_columns['popularity']} AS popularity")
     select_parts.append(
         f"{result_target_expression_sql(config.target_name, table_alias='r')} AS target_value",
@@ -178,6 +161,9 @@ def odds_only_dataset_query(config: DatasetBuildConfig) -> str:
         SELECT
             {", ".join(select_parts)}
         FROM jrdb_sed_staging r
+        LEFT JOIN jrdb_win_market_snapshot_v1 w
+            ON r.race_key = w.race_key
+            AND r.horse_number = w.horse_number
         WHERE r.result_date BETWEEN DATE '{config.start_date.isoformat()}'
             AND DATE '{config.end_date.isoformat()}'
             AND {result_target_filter_sql(config.target_name, table_alias='r')}
@@ -199,10 +185,13 @@ def win_market_only_dataset_query(config: DatasetBuildConfig) -> str:
             r.result_date AS race_date,
             {split_case_sql(config, table_alias='r', date_column='result_date')} AS split,
             '{config.target_name}' AS target_name,
-            TRY_CAST(r.{sed_columns['win_odds']} AS DOUBLE) AS win_odds,
+            w.win_odds AS win_odds,
             r.{sed_columns['popularity']} AS popularity,
             {result_target_expression_sql(config.target_name, table_alias='r')} AS target_value
         FROM jrdb_sed_staging r
+        LEFT JOIN jrdb_win_market_snapshot_v1 w
+            ON r.race_key = w.race_key
+            AND r.horse_number = w.horse_number
         WHERE r.result_date BETWEEN DATE '{config.start_date.isoformat()}'
             AND DATE '{config.end_date.isoformat()}'
             AND {result_target_filter_sql(config.target_name, table_alias='r')}
@@ -232,6 +221,9 @@ def market_feature_dataset_query(config: DatasetBuildConfig) -> str:
         SELECT
             {", ".join(select_parts)}
         FROM jrdb_sed_staging r
+        LEFT JOIN jrdb_win_market_snapshot_v1 w
+            ON r.race_key = w.race_key
+            AND r.horse_number = w.horse_number
         INNER JOIN jrdb_oz_staging o
             ON r.race_key = o.race_key
             AND r.horse_number = o.horse_number
@@ -257,9 +249,9 @@ def feature_select_parts(config: DatasetBuildConfig) -> tuple[str, ...]:
             raise ValueError(
                 "odds_only feature_set currently supports target_name='is_place' or 'is_win' only",
             )
-        sed_columns = selected_columns("SED", allowed_statuses=(CONFIRMED, "provisional"))
-        select_parts = [f"TRY_CAST(r.{sed_columns['win_odds']} AS DOUBLE) AS win_odds"]
+        select_parts = ["w.win_odds AS win_odds"]
         if config.include_popularity:
+            sed_columns = selected_columns("SED", allowed_statuses=(CONFIRMED, "provisional"))
             select_parts.append(f"r.{sed_columns['popularity']} AS popularity")
         return tuple(select_parts)
     if config.feature_set == "win_market_only":
@@ -269,7 +261,7 @@ def feature_select_parts(config: DatasetBuildConfig) -> tuple[str, ...]:
             )
         sed_columns = selected_columns("SED", allowed_statuses=(CONFIRMED, "provisional"))
         return (
-            f"TRY_CAST(r.{sed_columns['win_odds']} AS DOUBLE) AS win_odds",
+            "w.win_odds AS win_odds",
             f"r.{sed_columns['popularity']} AS popularity",
         )
     if config.feature_set in {
@@ -297,7 +289,7 @@ def feature_select_parts(config: DatasetBuildConfig) -> tuple[str, ...]:
         cha_columns = selected_columns("CHA", allowed_statuses=(CONFIRMED,))
         sed_columns = selected_columns("SED", allowed_statuses=(CONFIRMED, "provisional"))
         return (
-            f"TRY_CAST(r.{sed_columns['win_odds']} AS DOUBLE) AS win_odds",
+            "w.win_odds AS win_odds",
             f"r.{sed_columns['popularity']} AS popularity",
             "DATE_DIFF('day', c.workout_date, b.race_date) AS workout_gap_days",
             f"{workout_weekday_case_sql(cha_columns['workout_weekday'])} AS workout_weekday_code",
@@ -310,7 +302,7 @@ def market_feature_select_parts(
     sed_columns: dict[str, str],
     oz_columns: dict[str, str],
 ) -> tuple[str, ...]:
-    win_odds_sql = f"TRY_CAST(r.{sed_columns['win_odds']} AS DOUBLE) AS win_odds"
+    win_odds_sql = "w.win_odds AS win_odds"
     popularity_sql = f"r.{sed_columns['popularity']} AS popularity"
     place_basis_sql = (
         f"TRY_CAST(o.{oz_columns['place_basis_odds']} AS DOUBLE) AS place_basis_odds"
@@ -366,7 +358,7 @@ def market_feature_select_parts(
             popularity_sql,
             (
                 "LN(TRY_CAST(o.place_basis_odds AS DOUBLE)) "
-                "- LN(TRY_CAST(r.win_odds AS DOUBLE)) AS log_place_minus_log_win"
+                "- LN(w.win_odds) AS log_place_minus_log_win"
             ),
         )
     if feature_set == "dual_market_plus_implied_probs":
@@ -379,7 +371,7 @@ def market_feature_select_parts(
                 "AS implied_place_prob"
             ),
             (
-                "1.0 / NULLIF(TRY_CAST(r.win_odds AS DOUBLE), 0.0) "
+                "1.0 / NULLIF(w.win_odds, 0.0) "
                 "AS implied_win_prob"
             ),
         )
@@ -390,7 +382,7 @@ def market_feature_select_parts(
             popularity_sql,
             (
                 "(1.0 / NULLIF(TRY_CAST(o.place_basis_odds AS DOUBLE), 0.0)) "
-                "- (1.0 / NULLIF(TRY_CAST(r.win_odds AS DOUBLE), 0.0)) "
+                "- (1.0 / NULLIF(w.win_odds, 0.0)) "
                 "AS implied_place_prob_minus_implied_win_prob"
             ),
         )
@@ -401,19 +393,18 @@ def market_feature_select_parts(
             popularity_sql,
             (
                 "TRY_CAST(o.place_basis_odds AS DOUBLE) "
-                "/ NULLIF(TRY_CAST(r.win_odds AS DOUBLE), 0.0) AS place_to_win_ratio"
+                "/ NULLIF(w.win_odds, 0.0) AS place_to_win_ratio"
             ),
         )
     raise ValueError(f"unsupported market feature_set: {feature_set}")
 
 
 def processed_columns(config: DatasetBuildConfig) -> tuple[str, ...]:
-    feature_columns = FEATURE_SET_COLUMNS.get(config.feature_set)
-    if feature_columns is None:
-        raise ValueError(f"unsupported feature_set: {config.feature_set}")
+    feature_columns = dataset_feature_columns(
+        config.feature_set,
+        include_popularity=config.include_popularity,
+    )
     columns = METADATA_COLUMNS + feature_columns + TARGET_COLUMNS
-    if config.feature_set == "odds_only" and config.include_popularity:
-        return METADATA_COLUMNS + ("win_odds", "popularity") + TARGET_COLUMNS
     return columns
 
 
