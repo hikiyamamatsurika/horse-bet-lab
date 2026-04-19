@@ -59,6 +59,12 @@ runner は次の順で処理する。
 
 `snapshot_status != ok` は silent skip ではなく、prediction を進めずに explicit `no_bet` artifact を出す。
 
+reconciliation implementation は次を source of truth とする。
+
+- `horse_bet_lab.forward_test.reconciliation`
+- CLI:
+  - `python -m horse_bet_lab.forward_test.reconciliation_cli --config <path>`
+
 ## Input Contract
 
 Phase 1 の標準 input record は horse-level row として扱う。
@@ -165,6 +171,43 @@ optional provenance fields:
 - `fallback_logic_id`
 - `run_manifest_hash`
 
+### Reconciliation Record
+
+reconciliation では pre-race decision を再計算せず、そのまま result-side outcome を付与する。
+
+required fields:
+
+- `race_key`
+- `horse_number`
+- `bet_action`
+- `decision_reason`
+- `result_known`
+- `reconciliation_status`
+- `feature_contract_version`
+- `model_version`
+- `carrier_identity`
+- `odds_observation_timestamp`
+
+recommended fields:
+
+- `snapshot_status`
+- `no_bet_reason`
+- `prediction_probability`
+- `result_date`
+- `finish_position`
+- `place_hit`
+- `official_place_payout`
+- `simulated_payout`
+- `simulated_profit_loss`
+
+### Reconciliation Artifacts
+
+- `reconciled_records.csv`
+- `reconciled_records.json`
+- `reconciliation_summary.json`
+- `reconciliation_summary.txt`
+- `reconciliation_manifest.json`
+
 ## Provenance Minimum
 
 forward-test artifacts は少なくとも次を残す。
@@ -206,3 +249,12 @@ contract validation は human-readable error で止める。
 - `snapshot_status=ok` なのに required odds が missing
 - `popularity` があるのに unresolved auxiliary として記録されていない
 - `bet_action=no_bet` なのに reason が空
+
+reconciliation でも human-readable failure boundary を保つ。
+
+例:
+
+- forward output dir に必須 artifact が無い
+- decision row に対応する input snapshot row が無い
+- result-side join が duplicate になっている
+- 結果未確定 race を settled 扱いにしてしまう hidden correction

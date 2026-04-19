@@ -118,6 +118,14 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config confi
 - `run_manifest.json.provenance.json`
 - `summary.txt`
 
+reconciliation output の例:
+
+- `reconciled_records.csv`
+- `reconciled_records.json`
+- `reconciliation_summary.json`
+- `reconciliation_summary.txt`
+- `reconciliation_manifest.json`
+
 ## Which Artifact To Read
 
 - prediction を見たい:
@@ -134,6 +142,22 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config confi
 - `logic_filtered` と snapshot failure 系を分けて見たい:
   - `bet_decision_records.csv` の `no_bet_reason`
   - `logic_filtered`, `timeout`, `required_odds_missing` を別カテゴリとして読む
+
+reconciliation 後に結果と突合したい:
+
+- `reconciled_records.csv`
+  - `bet_action`
+  - `reconciliation_status`
+  - `place_hit`
+  - `official_place_payout`
+  - `simulated_profit_loss`
+- `reconciliation_summary.json`
+  - `settled_bets`
+  - `unsettled_bets`
+  - `hit_count`
+  - `total_simulated_payout`
+  - `total_simulated_profit_loss`
+  - `no_bet_reason_counts`
 
 ## Minimal Artifact Schema Notes
 

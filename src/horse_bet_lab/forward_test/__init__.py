@@ -20,6 +20,14 @@ from horse_bet_lab.forward_test.runner import (
     load_config,
     run_place_forward_test,
 )
+from horse_bet_lab.forward_test.reconciliation import (
+    PlaceForwardReconciliationConfig,
+    PlaceForwardReconciliationResult,
+    PlaceForwardReconciledRecord,
+    build_reconciliation_parser,
+    load_reconciliation_config,
+    run_place_forward_reconciliation,
+)
 
 __all__ = [
     "PLACE_FORWARD_TEST_CONTRACT_VERSION",
@@ -32,11 +40,17 @@ __all__ = [
     "PlaceForwardBetDecisionRecord",
     "PlaceForwardInputRecord",
     "PlaceForwardPredictionOutputRecord",
+    "PlaceForwardReconciledRecord",
+    "PlaceForwardReconciliationConfig",
+    "PlaceForwardReconciliationResult",
     "PlaceForwardRunResult",
     "PlaceForwardTestConfig",
     "build_place_forward_artifact_provenance",
     "build_parser",
+    "build_reconciliation_parser",
     "load_config",
+    "load_reconciliation_config",
+    "run_place_forward_reconciliation",
     "run_place_forward_test",
     "validate_place_forward_input_record",
     "validate_place_forward_input_records",
