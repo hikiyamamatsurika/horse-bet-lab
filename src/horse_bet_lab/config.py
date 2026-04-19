@@ -5,6 +5,12 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+from horse_bet_lab.features.registry import (
+    validate_dataset_feature_set,
+    validate_model_feature_columns,
+    validate_model_feature_columns_for_dataset_feature_set,
+)
+
 
 @dataclass(frozen=True)
 class ExperimentConfig:
@@ -546,14 +552,17 @@ def load_dataset_build_config(path: Path) -> DatasetBuildConfig:
     dataset = raw_config["dataset"]
     train_end_date = dataset.get("train_end_date")
     valid_end_date = dataset.get("valid_end_date")
+    feature_set = str(dataset.get("feature_set", "minimal"))
+    include_popularity = bool(dataset.get("include_popularity", False))
+    validate_dataset_feature_set(feature_set, include_popularity=include_popularity)
     return DatasetBuildConfig(
         name=dataset["name"],
         start_date=date.fromisoformat(dataset["start_date"]),
         end_date=date.fromisoformat(dataset["end_date"]),
         train_end_date=date.fromisoformat(train_end_date) if train_end_date is not None else None,
         valid_end_date=date.fromisoformat(valid_end_date) if valid_end_date is not None else None,
-        feature_set=dataset.get("feature_set", "minimal"),
-        include_popularity=bool(dataset.get("include_popularity", False)),
+        feature_set=feature_set,
+        include_popularity=include_popularity,
         target_name=dataset["target_name"],
         duckdb_path=Path(dataset["duckdb_path"]),
         output_path=Path(dataset["output_path"]),
@@ -568,6 +577,10 @@ def load_model_train_config(path: Path) -> ModelTrainConfig:
     feature_columns = tuple(training["feature_columns"])
     feature_transforms = tuple(
         training.get("feature_transforms", ["identity"] * len(feature_columns)),
+    )
+    validate_model_feature_columns(
+        feature_columns,
+        context=f"training feature_columns in {path}",
     )
     return ModelTrainConfig(
         name=training["name"],
@@ -601,6 +614,16 @@ def load_market_feature_comparison_config(path: Path) -> MarketFeatureComparison
         )
         for feature_set in comparison["feature_sets"]
     )
+    for feature_set in feature_sets:
+        validate_model_feature_columns_for_dataset_feature_set(
+            dataset_feature_set=feature_set.dataset_feature_set,
+            include_popularity=feature_set.include_popularity,
+            feature_columns=feature_set.feature_columns,
+            context=(
+                f"comparison feature_columns for feature_set {feature_set.name!r} "
+                f"in {path}"
+            ),
+        )
     return MarketFeatureComparisonConfig(
         name=str(comparison["name"]),
         duckdb_path=Path(comparison["duckdb_path"]),
@@ -1436,6 +1459,11 @@ def load_place_backtest_config(path: Path) -> PlaceBacktestConfig:
         if rolling_retrain is not None
         else ()
     )
+    if rolling_retrain is not None and rolling_feature_columns:
+        validate_model_feature_columns(
+            rolling_feature_columns,
+            context=f"rolling_retrain feature_columns in {path}",
+        )
     return PlaceBacktestConfig(
         name=backtest["name"],
         predictions_path=Path(backtest["predictions_path"]),
@@ -1652,7 +1680,6 @@ def load_wide_family_selection_config(path: Path) -> WideFamilySelectionConfig:
             float(analysis["v6_partner_weight"]) if "v6_partner_weight" in analysis else None
         ),
     )
-
 
 def parse_model_params(raw_params: object) -> dict[str, object]:
     if raw_params is None:

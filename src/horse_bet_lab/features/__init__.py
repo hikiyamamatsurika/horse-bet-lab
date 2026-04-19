@@ -1,0 +1,43 @@
+from horse_bet_lab.features.registry import (
+    DATASET_FEATURE_SET_REGISTRY,
+    FEATURE_REGISTRY,
+    DatasetFeatureSetDefinition,
+    FeatureDefinition,
+    dataset_feature_columns,
+    dataset_feature_set_names,
+    model_feature_sequence_supported,
+    supported_model_feature_sequences,
+    validate_dataset_feature_set,
+    validate_feature_names,
+    validate_model_feature_columns,
+    validate_model_feature_columns_for_dataset_feature_set,
+)
+from horse_bet_lab.features.provenance import (
+    FEATURE_CONTRACT_VERSION,
+    build_feature_provenance_payload,
+    build_feature_source_summary,
+    dataset_model_feature_columns,
+    provenance_sidecar_path,
+    write_feature_provenance_sidecar,
+)
+
+__all__ = [
+    "DATASET_FEATURE_SET_REGISTRY",
+    "FEATURE_REGISTRY",
+    "DatasetFeatureSetDefinition",
+    "FeatureDefinition",
+    "FEATURE_CONTRACT_VERSION",
+    "dataset_feature_columns",
+    "dataset_model_feature_columns",
+    "dataset_feature_set_names",
+    "build_feature_provenance_payload",
+    "build_feature_source_summary",
+    "provenance_sidecar_path",
+    "model_feature_sequence_supported",
+    "supported_model_feature_sequences",
+    "validate_dataset_feature_set",
+    "validate_feature_names",
+    "validate_model_feature_columns",
+    "validate_model_feature_columns_for_dataset_feature_set",
+    "write_feature_provenance_sidecar",
+]

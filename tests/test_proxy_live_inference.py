@@ -174,6 +174,12 @@ def test_proxy_live_pipeline_writes_manifest_and_gap_summary(tmp_path: Path) -> 
     assert manifest["source_url"] == "https://example.com/odds"
     assert manifest["source_timestamp"] == "2026-04-19T08:00:00+09:00"
     assert manifest["input_csv_hash"] == hashlib.sha256(input_path.read_bytes()).hexdigest()
+    assert manifest["provenance"]["feature_contract_version"] == "v1"
+    assert manifest["provenance"]["model_feature_columns"] == [
+        "win_odds",
+        "place_basis_odds",
+        "popularity",
+    ]
 
     gap_summary = json.loads(
         (output_path.parent / "proxy_feature_gap_summary.json").read_text(encoding="utf-8")
@@ -217,3 +223,51 @@ def test_proxy_live_rejects_forbidden_leakage_columns(tmp_path: Path) -> None:
         assert "forbidden leakage columns" in str(exc)
     else:
         raise AssertionError("expected leakage columns to be rejected")
+
+
+def test_proxy_live_config_rejects_dataset_only_feature_columns(tmp_path: Path) -> None:
+    module = load_proxy_live_module()
+
+    dataset_path = tmp_path / "dataset.parquet"
+    input_path = tmp_path / "input.csv"
+    output_path = tmp_path / "artifacts" / "scores.csv"
+    config_path = tmp_path / "config_invalid.toml"
+    db_path = tmp_path / "historical.duckdb"
+
+    create_training_dataset(dataset_path)
+    create_historical_duckdb(db_path)
+    write_live_input(input_path)
+    config_path.write_text(
+        (
+            "[live_inference]\n"
+            "name = 'proxy_live_invalid'\n"
+            "race_name = 'Test Race'\n"
+            "race_date = '2026-04-19'\n"
+            f"input_path = '{input_path}'\n"
+            f"output_path = '{output_path}'\n"
+            "input_source = 'Public odds page'\n"
+            "source_url = 'https://example.com/odds'\n"
+            "source_timestamp = '2026-04-19T08:00:00+09:00'\n"
+            "proxy_rule = 'place_basis_odds_proxy = (place_odds_min + place_odds_max) / 2'\n"
+            "\n"
+            "[live_inference.reference_model]\n"
+            f"dataset_path = '{dataset_path}'\n"
+            f"historical_duckdb_path = '{db_path}'\n"
+            "model_name = 'logistic_regression'\n"
+            "feature_columns = ['win_odds', 'race_name']\n"
+            "feature_transforms = ['log1p', 'identity']\n"
+            "target_column = 'target_value'\n"
+            "split_column = 'split'\n"
+            "training_splits = ['train', 'valid', 'test']\n"
+            "max_iter = 200\n"
+            "model_params = {}\n"
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        module.load_config(config_path)
+    except ValueError as exc:
+        assert "features not allowed in model parity path" in str(exc)
+    else:
+        raise AssertionError("expected dataset-only live feature config to be rejected")
