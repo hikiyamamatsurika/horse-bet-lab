@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
+from typing import Sequence
 
 
 @dataclass(frozen=True)
@@ -22,6 +24,15 @@ class DatasetFeatureSetDefinition:
     model_parity_columns: tuple[str, ...] | None
     optional_dataset_columns: tuple[str, ...] = ()
     optional_model_parity_columns: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class FeatureMissingNullPolicy:
+    canonical_name: str
+    dataset_null_allowed: bool
+    dataset_null_condition: str
+    model_null_allowed: bool
+    model_null_condition: str
 
 
 FEATURE_REGISTRY: dict[str, FeatureDefinition] = {
@@ -392,8 +403,173 @@ DATASET_FEATURE_SET_REGISTRY: dict[str, DatasetFeatureSetDefinition] = {
 }
 
 
+FEATURE_MISSING_NULL_POLICY_REGISTRY: dict[str, FeatureMissingNullPolicy] = {
+    "distance_m": FeatureMissingNullPolicy(
+        canonical_name="distance_m",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when upstream BAC distance is missing or unparsable",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "race_name": FeatureMissingNullPolicy(
+        canonical_name="race_name",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when upstream BAC race_name is missing",
+        model_null_allowed=False,
+        model_null_condition="dataset-only text feature; not permitted in model parity path",
+    ),
+    "workout_weekday": FeatureMissingNullPolicy(
+        canonical_name="workout_weekday",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when upstream CHA workout_weekday is missing",
+        model_null_allowed=False,
+        model_null_condition="dataset-only text feature; not permitted in model parity path",
+    ),
+    "workout_date": FeatureMissingNullPolicy(
+        canonical_name="workout_date",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when upstream CHA workout_date is missing",
+        model_null_allowed=False,
+        model_null_condition="dataset-only date feature; not permitted in model parity path",
+    ),
+    "win_odds": FeatureMissingNullPolicy(
+        canonical_name="win_odds",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when the upstream carrier is missing, parse fails, or the snapshot is unavailable",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "popularity": FeatureMissingNullPolicy(
+        canonical_name="popularity",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when the legacy SED carrier is missing or parse fails",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "place_basis_odds": FeatureMissingNullPolicy(
+        canonical_name="place_basis_odds",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when OZ place odds are missing or parse fails",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "headcount": FeatureMissingNullPolicy(
+        canonical_name="headcount",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when OZ headcount is missing or parse fails",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "workout_gap_days": FeatureMissingNullPolicy(
+        canonical_name="workout_gap_days",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when workout_date or race_date needed for the derivation is missing",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "workout_weekday_code": FeatureMissingNullPolicy(
+        canonical_name="workout_weekday_code",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when workout_weekday is missing or unmapped",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "place_slot_count": FeatureMissingNullPolicy(
+        canonical_name="place_slot_count",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when headcount is missing and the derivation cannot be completed",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "log_place_minus_log_win": FeatureMissingNullPolicy(
+        canonical_name="log_place_minus_log_win",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when source odds are missing, non-positive, or invalid for the log derivation",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "implied_place_prob": FeatureMissingNullPolicy(
+        canonical_name="implied_place_prob",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when place_basis_odds is missing or non-positive",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "implied_win_prob": FeatureMissingNullPolicy(
+        canonical_name="implied_win_prob",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when win_odds is missing or non-positive",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "implied_place_prob_minus_implied_win_prob": FeatureMissingNullPolicy(
+        canonical_name="implied_place_prob_minus_implied_win_prob",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when either implied probability source is missing",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "place_to_win_ratio": FeatureMissingNullPolicy(
+        canonical_name="place_to_win_ratio",
+        dataset_null_allowed=True,
+        dataset_null_condition="allowed only when source odds are missing or invalid for the ratio derivation",
+        model_null_allowed=False,
+        model_null_condition="current v1 numeric model path requires non-null values; no fillna/coercion",
+    ),
+    "finish_position": FeatureMissingNullPolicy(
+        canonical_name="finish_position",
+        dataset_null_allowed=False,
+        dataset_null_condition="result-side field is outside the feature dataset contract",
+        model_null_allowed=False,
+        model_null_condition="forbidden post-race/result-side feature",
+    ),
+    "result_date": FeatureMissingNullPolicy(
+        canonical_name="result_date",
+        dataset_null_allowed=False,
+        dataset_null_condition="result-side field is outside the feature dataset contract",
+        model_null_allowed=False,
+        model_null_condition="forbidden post-race/result-side feature",
+    ),
+    "win_payout": FeatureMissingNullPolicy(
+        canonical_name="win_payout",
+        dataset_null_allowed=False,
+        dataset_null_condition="result-side field is outside the feature dataset contract",
+        model_null_allowed=False,
+        model_null_condition="forbidden post-race/result-side feature",
+    ),
+    "place_payout_1": FeatureMissingNullPolicy(
+        canonical_name="place_payout_1",
+        dataset_null_allowed=False,
+        dataset_null_condition="result-side field is outside the feature dataset contract",
+        model_null_allowed=False,
+        model_null_condition="forbidden post-race/result-side feature",
+    ),
+    "place_payout_2": FeatureMissingNullPolicy(
+        canonical_name="place_payout_2",
+        dataset_null_allowed=False,
+        dataset_null_condition="result-side field is outside the feature dataset contract",
+        model_null_allowed=False,
+        model_null_condition="forbidden post-race/result-side feature",
+    ),
+    "place_payout_3": FeatureMissingNullPolicy(
+        canonical_name="place_payout_3",
+        dataset_null_allowed=False,
+        dataset_null_condition="result-side field is outside the feature dataset contract",
+        model_null_allowed=False,
+        model_null_condition="forbidden post-race/result-side feature",
+    ),
+}
+
+
 def dataset_feature_set_names() -> tuple[str, ...]:
     return tuple(DATASET_FEATURE_SET_REGISTRY)
+
+
+def feature_missing_null_policy(feature_name: str) -> FeatureMissingNullPolicy:
+    try:
+        return FEATURE_MISSING_NULL_POLICY_REGISTRY[feature_name]
+    except KeyError as exc:
+        raise ValueError(f"missing/null policy is not defined for feature: {feature_name!r}") from exc
 
 
 def validate_dataset_feature_set(feature_set: str, *, include_popularity: bool = False) -> None:
@@ -499,6 +675,61 @@ def validate_feature_names(
                 f"{context} contains non-numeric features not allowed in numeric model path: "
                 f"{non_numeric_features}",
             )
+
+
+def feature_value_is_missing(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, float):
+        return math.isnan(value)
+    return False
+
+
+def validate_model_feature_missing_values(
+    feature_columns: tuple[str, ...],
+    feature_rows: Sequence[Sequence[object]],
+    *,
+    context: str,
+    row_labels: Sequence[str] | None = None,
+) -> None:
+    validate_model_feature_columns(feature_columns, context=context)
+    violations: dict[str, list[str]] = {}
+    for row_index, row in enumerate(feature_rows, start=1):
+        row_label = (
+            row_labels[row_index - 1]
+            if row_labels is not None
+            else f"row_index={row_index}"
+        )
+        for feature_name, value in zip(feature_columns, row, strict=True):
+            policy = feature_missing_null_policy(feature_name)
+            if not feature_value_is_missing(value):
+                continue
+            if policy.model_null_allowed:
+                continue
+            violations.setdefault(feature_name, []).append(row_label)
+
+    if not violations:
+        return
+
+    parts: list[str] = []
+    for feature_name in feature_columns:
+        labels = violations.get(feature_name)
+        if not labels:
+            continue
+        policy = feature_missing_null_policy(feature_name)
+        preview = ", ".join(labels[:3])
+        if len(labels) > 3:
+            preview = f"{preview}, ..."
+        parts.append(
+            f"{feature_name} at {preview} "
+            f"(dataset: {policy.dataset_null_condition}; model path: {policy.model_null_condition})",
+        )
+    raise ValueError(
+        f"{context} contains unsupported null/missing values under feature contract v1: "
+        + "; ".join(parts),
+    )
 
 
 def validate_model_feature_columns(

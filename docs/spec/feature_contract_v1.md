@@ -95,8 +95,26 @@ v1 では `model_feature_columns` は必ず dataset schema 上の feature 列の
 
 - v1 では missing を「暗黙補完しない」が原則
 - upstream null / parse failure / zero-division は `NULL` のまま dataset に出る
-- model 側は現状、数値に `float(...)` 変換できる前提なので、実運用上は null を含む feature set をそのまま train しない
+- source of truth は `horse_bet_lab.features.registry.FEATURE_MISSING_NULL_POLICY_REGISTRY` とする
+- `dataset で NULL を持ってよい` と `model path で NULL を持ってよい` は別判定にする
+- current v1 numeric model path では hidden imputation / silent coercion / silent row drop を禁止する
+- model 側は train / rolling_retrain / live proxy の各 path で unsupported null pattern を clear error で止める
 - missing strategy を導入する場合は feature contract v2 で明示する
+
+### Missing/Null Enforcement Boundary
+
+- dataset layer:
+  - feature ごとの upstream null / parse failure / derivation failure は registry に定義した条件の範囲で `NULL` のまま保持してよい
+  - これは「値が未確定または作れなかった」という記録であり、補完完了を意味しない
+- current model parity path:
+  - `win_odds`, `popularity`, `place_basis_odds`, `headcount`, `distance_m`, `workout_gap_days`, `workout_weekday_code`, `place_slot_count`, `log_place_minus_log_win`, `implied_place_prob`, `implied_win_prob`, `implied_place_prob_minus_implied_win_prob`, `place_to_win_ratio` は current v1 では non-null required
+  - つまり dataset では nullable でも、train / rolling_retrain / live proxy の numeric input として読む時点では `NULL` を許可しない
+  - failure 時は feature 名と row identifier を含む human-readable error にする
+- dataset-only features:
+  - `race_name`, `workout_weekday`, `workout_date` は dataset では nullable でもよい
+  - ただし current v1 model parity path には載せない
+- result-side features:
+  - post-race/result-side feature は null policy の前に feature eligibility で禁止する
 
 ## Feature Inventory
 
@@ -335,8 +353,7 @@ blocked reason:
 3. `popularity` の true upstream pre-race carrier を確認する
 4. dataset artifact に `feature_contract_version` と feature provenance manifest を同梱する
 5. `minimal` feature set の text/date feature を parity path に入れるか、exploration-only として固定するかを決める
-6. missing/null policy を feature ごとに明文化し、train 前 validation に落とし込む
-7. live proxy contract を feature registry 参照型にして、`place_basis_odds_proxy` 以外の alias も管理可能にする
+6. live proxy contract を feature registry 参照型にして、`place_basis_odds_proxy` 以外の alias も管理可能にする
 
 ## Non-Goals For This Issue
 

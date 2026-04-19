@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import duckdb
+import pytest
 
 from horse_bet_lab.config import load_place_backtest_config
 from horse_bet_lab.evaluation.place_backtest import run_place_backtest
@@ -337,6 +338,78 @@ def test_run_place_backtest_supports_dual_market_robustness_smoke(
     assert {"roi_ci_lower", "roi_ci_upper", "max_drawdown", "max_losing_streak"} <= set(
         rollup_payload["rollups"][0].keys()
     )
+
+
+def test_run_place_backtest_rejects_null_rolling_retrain_feature_values(
+    tmp_path: Path,
+) -> None:
+    predictions_path = tmp_path / "predictions.csv"
+    predictions_path.write_text(
+        "race_key,horse_number,split,target_value,pred_probability\n",
+        encoding="utf-8",
+    )
+    dataset_path = tmp_path / "rolling_dataset_with_null.parquet"
+    connection = duckdb.connect()
+    try:
+        connection.execute(
+            """
+            CREATE TABLE rolling_dataset AS
+            SELECT * FROM (
+                VALUES
+                    ('t1', 1, DATE '2025-01-05', 2.0, 1, 1),
+                    ('t1', 2, DATE '2025-01-05', NULL, 6, 0),
+                    ('t2', 1, DATE '2025-01-12', 1.8, 1, 1),
+                    ('t2', 2, DATE '2025-01-12', 9.0, 7, 0),
+                    ('v1', 1, DATE '2025-02-10', 2.1, 1, 1),
+                    ('v1', 2, DATE '2025-02-10', 7.5, 5, 0),
+                    ('v2', 1, DATE '2025-02-17', 2.4, 2, 1),
+                    ('v2', 2, DATE '2025-02-17', 6.0, 4, 0),
+                    ('s1', 1, DATE '2025-03-10', 2.2, 1, 1),
+                    ('s1', 2, DATE '2025-03-10', 7.2, 5, 0)
+            ) AS t(race_key, horse_number, race_date, win_odds, popularity, target_value)
+            """
+        )
+        connection.execute("COPY rolling_dataset TO ? (FORMAT PARQUET)", [str(dataset_path)])
+    finally:
+        connection.close()
+    duckdb_path = tmp_path / "jrdb.duckdb"
+    prepare_rolling_backtest_tables(duckdb_path)
+
+    config_path = tmp_path / "place_backtest_null_rolling.toml"
+    config_path.write_text(
+        (
+            "[backtest]\n"
+            "name = 'place_backtest_null_rolling'\n"
+            f"predictions_path = '{predictions_path}'\n"
+            f"duckdb_path = '{duckdb_path}'\n"
+            f"output_dir = '{tmp_path / 'artifacts_null_rolling'}'\n"
+            "selection_metric = 'edge'\n"
+            "market_prob_method = 'oz_place_basis_inverse'\n"
+            "thresholds = [0.05]\n"
+            "stake_per_bet = 100\n"
+            "[[backtest.evaluation_window_pairs]]\n"
+            "label = 'pair_a'\n"
+            "valid_start_date = '2025-02-01'\n"
+            "valid_end_date = '2025-02-28'\n"
+            "test_start_date = '2025-03-01'\n"
+            "test_end_date = '2025-03-31'\n"
+            "[[backtest.selection_window_groups]]\n"
+            "label = 'test_pair_a'\n"
+            "valid_window_labels = ['pair_a']\n"
+            "test_window_label = 'pair_a'\n"
+            "\n"
+            "[rolling_retrain]\n"
+            f"dataset_path = '{dataset_path}'\n"
+            "feature_columns = ['win_odds', 'popularity']\n"
+            "feature_transforms = ['log1p', 'identity']\n"
+            "race_date_column = 'race_date'\n"
+            "max_iter = 1000\n"
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="rolling retrain dataset.*win_odds"):
+        run_place_backtest(load_place_backtest_config(config_path))
 
 
 def prepare_hjc_table(duckdb_path: Path) -> None:
