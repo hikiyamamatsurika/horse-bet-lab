@@ -1,0 +1,28 @@
+[place_forward_snapshot_bridge]
+name = "place_forward_snapshot_bridge_runtime_20260419_failure_probe"
+output_path = "data/forward_test/runs/20260419_failure_probe/contract/input_snapshot_20260419_failure_probe.csv"
+strict_race_key = true
+infer_snapshot_status = true
+write_json_copy = true
+
+[place_forward_snapshot_bridge.columns]
+race_key = "race_key"
+horse_number = "horse_number"
+win_odds = "win_odds"
+place_basis_odds_proxy = "place_basis_odds_proxy"
+popularity = "popularity"
+snapshot_status = "snapshot_status"
+retry_count = "retry_count"
+timeout_seconds = "timeout_seconds"
+snapshot_failure_reason = "snapshot_failure_reason"
+
+[[place_forward_snapshot_bridge.sources]]
+path = "data/forward_test/runs/20260419_failure_probe/raw/input_snapshot_raw.csv"
+input_source_name = "operator_manual_failure_probe"
+input_source_url = "https://example.invalid/manual-failure-probe"
+input_source_timestamp = "2026-04-19T07:55:00+09:00"
+odds_observation_timestamp = "2026-04-19T07:55:00+09:00"
+carrier_identity = "place_forward_live_snapshot_v1"
+default_retry_count = 3
+default_timeout_seconds = 15
+default_popularity_input_source = "operator_manual_failure_probe"

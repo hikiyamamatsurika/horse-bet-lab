@@ -29,6 +29,7 @@
 - その週の run units をざっと見直す
 - `logic_filtered` と snapshot failure 系 reason の比率を確認する
 - settled / unsettled の残りを確認し、必要なら archive note を残す
+- result DB 未更新による `unsettled_result_pending` と operator 側の手順ミスを混同しない
 
 ## Recommended Directory And Naming Convention
 
@@ -105,6 +106,8 @@ data/forward_test/runs/<unit_id>/notes/
 3. `logic_filtered` が極端に偏っていないか確認する
 4. unsettled のまま残っている unit を確認する
 5. 次週も同じ命名規則と template で回せるか確認する
+
+週次メモを残すときの雛形は [docs/runbooks/place_forward_test_phase1_weekly_review_template.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/runbooks/place_forward_test_phase1_weekly_review_template.md:1) を使う。
 
 ## Artifact Reading Guide
 
