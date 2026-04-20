@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -60,10 +62,36 @@ class PlaceForwardScaffoldConfig:
 
 
 @dataclass(frozen=True)
+class PlaceForwardUnitMetadataManifest:
+    unit_id: str
+    config_dir: Path
+    raw_input_path: Path
+    contract_output_path: Path
+    pre_race_output_dir: Path
+    reconciliation_output_dir: Path
+    dataset_path: Path
+    duckdb_path: Path
+    model_version: str
+    candidate_logic_id: str
+    fallback_logic_id: str
+    threshold: float
+    settled_as_of: str
+    input_source_name: str
+    input_source_url: str
+    input_source_timestamp: str
+    odds_observation_timestamp: str
+    carrier_identity: str
+    retry_count: int
+    timeout_seconds: float
+    popularity_input_source: str
+
+
+@dataclass(frozen=True)
 class PlaceForwardScaffoldResult:
     bridge_config_path: Path
     pre_race_config_path: Path
     reconciliation_config_path: Path
+    metadata_manifest_path: Path
     intake_manifest_path: Path
     raw_dir: Path
     contract_dir: Path
@@ -165,6 +193,24 @@ def build_scaffold_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_scaffold_sync_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Regenerate recurring rehearsal runtime configs from one unit metadata manifest.",
+    )
+    parser.add_argument(
+        "--metadata-manifest-path",
+        type=Path,
+        required=True,
+        help="Path to data/forward_test/runs/<unit_id>/notes/unit_metadata_manifest.json.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow overwriting existing generated runtime config files.",
+    )
+    return parser
+
+
 def build_scaffold_config_from_args(args: argparse.Namespace) -> PlaceForwardScaffoldConfig:
     unit_id = validate_unit_id(str(args.unit_id))
     raw_input_path = args.raw_input_path or Path(
@@ -180,6 +226,7 @@ def build_scaffold_config_from_args(args: argparse.Namespace) -> PlaceForwardSca
         f"data/artifacts/place_forward_test/{unit_id}/reconciliation"
     )
     config_dir = Path(args.config_dir)
+    notes_dir = raw_input_path.parent.parent / "notes"
     return PlaceForwardScaffoldConfig(
         unit_id=unit_id,
         raw_input_path=raw_input_path,
@@ -197,7 +244,7 @@ def build_scaffold_config_from_args(args: argparse.Namespace) -> PlaceForwardSca
         bridge_config_path=config_dir / f"{unit_id}.bridge.toml",
         pre_race_config_path=config_dir / f"{unit_id}.pre_race.toml",
         reconciliation_config_path=config_dir / f"{unit_id}.reconciliation.toml",
-        notes_dir=Path(f"data/forward_test/runs/{unit_id}/notes"),
+        notes_dir=notes_dir,
         input_source_name=str(args.input_source_name),
         input_source_url=str(args.input_source_url),
         input_source_timestamp=str(args.input_source_timestamp),
@@ -224,71 +271,153 @@ def validate_unit_id(unit_id: str) -> str:
     return cleaned
 
 
-def run_scaffold(config: PlaceForwardScaffoldConfig) -> PlaceForwardScaffoldResult:
-    intake_manifest_path = default_intake_manifest_path(config.raw_input_path)
-    ensure_outputs_do_not_exist(
-        (
-            config.bridge_config_path,
-            config.pre_race_config_path,
-            config.reconciliation_config_path,
-            intake_manifest_path,
-        ),
-        force=config.force,
+def default_unit_metadata_manifest_path(notes_dir: Path) -> Path:
+    return notes_dir / "unit_metadata_manifest.json"
+
+
+def build_unit_metadata_manifest(
+    config: PlaceForwardScaffoldConfig,
+) -> PlaceForwardUnitMetadataManifest:
+    return PlaceForwardUnitMetadataManifest(
+        unit_id=config.unit_id,
+        config_dir=config.config_dir,
+        raw_input_path=config.raw_input_path,
+        contract_output_path=config.contract_output_path,
+        pre_race_output_dir=config.pre_race_output_dir,
+        reconciliation_output_dir=config.reconciliation_output_dir,
+        dataset_path=config.dataset_path,
+        duckdb_path=config.duckdb_path,
+        model_version=config.model_version,
+        candidate_logic_id=config.candidate_logic_id,
+        fallback_logic_id=config.fallback_logic_id,
+        threshold=config.threshold,
+        settled_as_of=config.settled_as_of,
+        input_source_name=config.input_source_name,
+        input_source_url=config.input_source_url,
+        input_source_timestamp=config.input_source_timestamp,
+        odds_observation_timestamp=config.odds_observation_timestamp,
+        carrier_identity=config.carrier_identity,
+        retry_count=config.retry_count,
+        timeout_seconds=config.timeout_seconds,
+        popularity_input_source=config.popularity_input_source,
     )
+
+
+def build_runtime_paths(
+    metadata: PlaceForwardUnitMetadataManifest,
+) -> tuple[Path, Path, Path]:
+    config_dir = metadata.config_dir
+    unit_id = metadata.unit_id
+    return (
+        config_dir / f"{unit_id}.bridge.toml",
+        config_dir / f"{unit_id}.pre_race.toml",
+        config_dir / f"{unit_id}.reconciliation.toml",
+    )
+
+
+def run_scaffold(config: PlaceForwardScaffoldConfig) -> PlaceForwardScaffoldResult:
+    metadata_manifest = build_unit_metadata_manifest(config)
+    metadata_manifest_path = default_unit_metadata_manifest_path(config.notes_dir)
+    return materialize_scaffold_outputs(
+        metadata_manifest,
+        metadata_manifest_path=metadata_manifest_path,
+        force=config.force,
+        rewrite_metadata_manifest=True,
+    )
+
+
+def run_scaffold_sync(
+    metadata_manifest_path: Path,
+    *,
+    force: bool,
+) -> PlaceForwardScaffoldResult:
+    metadata_manifest = load_unit_metadata_manifest(metadata_manifest_path)
+    return materialize_scaffold_outputs(
+        metadata_manifest,
+        metadata_manifest_path=metadata_manifest_path,
+        force=force,
+        rewrite_metadata_manifest=False,
+    )
+
+
+def materialize_scaffold_outputs(
+    metadata: PlaceForwardUnitMetadataManifest,
+    *,
+    metadata_manifest_path: Path,
+    force: bool,
+    rewrite_metadata_manifest: bool,
+) -> PlaceForwardScaffoldResult:
+    bridge_config_path, pre_race_config_path, reconciliation_config_path = build_runtime_paths(
+        metadata
+    )
+    intake_manifest_path = default_intake_manifest_path(metadata.raw_input_path)
+    managed_paths = [
+        bridge_config_path,
+        pre_race_config_path,
+        reconciliation_config_path,
+        intake_manifest_path,
+    ]
+    if rewrite_metadata_manifest:
+        managed_paths.append(metadata_manifest_path)
+    ensure_outputs_do_not_exist(tuple(managed_paths), force=force)
+
     template_dir = DEFAULT_TEMPLATE_DIR
     bridge_text = render_bridge_template(
         (template_dir / "place_forward_snapshot_bridge_runtime.template.toml").read_text(
             encoding="utf-8"
         ),
-        config,
+        metadata,
     )
     pre_race_text = render_pre_race_template(
         (template_dir / "place_forward_test_phase1_runtime.template.toml").read_text(
             encoding="utf-8"
         ),
-        config,
+        metadata,
     )
     reconciliation_text = render_reconciliation_template(
         (template_dir / "place_forward_test_reconciliation_runtime.template.toml").read_text(
             encoding="utf-8"
         ),
-        config,
+        metadata,
     )
 
-    config.config_dir.mkdir(parents=True, exist_ok=True)
-    config.raw_input_path.parent.mkdir(parents=True, exist_ok=True)
-    config.contract_output_path.parent.mkdir(parents=True, exist_ok=True)
-    config.notes_dir.mkdir(parents=True, exist_ok=True)
-    config.pre_race_output_dir.mkdir(parents=True, exist_ok=True)
-    config.reconciliation_output_dir.mkdir(parents=True, exist_ok=True)
+    metadata.config_dir.mkdir(parents=True, exist_ok=True)
+    metadata.raw_input_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata.contract_output_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata.pre_race_output_dir.mkdir(parents=True, exist_ok=True)
+    metadata.reconciliation_output_dir.mkdir(parents=True, exist_ok=True)
 
-    config.bridge_config_path.write_text(bridge_text, encoding="utf-8")
-    config.pre_race_config_path.write_text(pre_race_text, encoding="utf-8")
-    config.reconciliation_config_path.write_text(reconciliation_text, encoding="utf-8")
+    bridge_config_path.write_text(bridge_text, encoding="utf-8")
+    pre_race_config_path.write_text(pre_race_text, encoding="utf-8")
+    reconciliation_config_path.write_text(reconciliation_text, encoding="utf-8")
+    if rewrite_metadata_manifest:
+        write_unit_metadata_manifest(metadata_manifest_path, metadata)
     write_raw_snapshot_intake_manifest(
         intake_manifest_path,
         build_default_raw_snapshot_intake_manifest(
-            unit_id=config.unit_id,
-            raw_snapshot_path=config.raw_input_path,
-            source_family=config.input_source_name,
-            input_source_name=config.input_source_name,
-            input_source_url=config.input_source_url,
-            input_source_timestamp=config.input_source_timestamp,
-            odds_observation_timestamp=config.odds_observation_timestamp,
-            carrier_identity=config.carrier_identity,
+            unit_id=metadata.unit_id,
+            raw_snapshot_path=metadata.raw_input_path,
+            source_family=metadata.input_source_name,
+            input_source_name=metadata.input_source_name,
+            input_source_url=metadata.input_source_url,
+            input_source_timestamp=metadata.input_source_timestamp,
+            odds_observation_timestamp=metadata.odds_observation_timestamp,
+            carrier_identity=metadata.carrier_identity,
         ),
     )
 
     return PlaceForwardScaffoldResult(
-        bridge_config_path=config.bridge_config_path,
-        pre_race_config_path=config.pre_race_config_path,
-        reconciliation_config_path=config.reconciliation_config_path,
+        bridge_config_path=bridge_config_path,
+        pre_race_config_path=pre_race_config_path,
+        reconciliation_config_path=reconciliation_config_path,
+        metadata_manifest_path=metadata_manifest_path,
         intake_manifest_path=intake_manifest_path,
-        raw_dir=config.raw_input_path.parent,
-        contract_dir=config.contract_output_path.parent,
-        notes_dir=config.notes_dir,
-        pre_race_output_dir=config.pre_race_output_dir,
-        reconciliation_output_dir=config.reconciliation_output_dir,
+        raw_dir=metadata.raw_input_path.parent,
+        contract_dir=metadata.contract_output_path.parent,
+        notes_dir=metadata_manifest_path.parent,
+        pre_race_output_dir=metadata.pre_race_output_dir,
+        reconciliation_output_dir=metadata.reconciliation_output_dir,
     )
 
 
@@ -301,85 +430,192 @@ def ensure_outputs_do_not_exist(paths: tuple[Path, ...], *, force: bool) -> None
         )
 
 
-def render_bridge_template(template_text: str, config: PlaceForwardScaffoldConfig) -> str:
-    rendered = template_text.replace("<unit_id>", config.unit_id)
+def render_bridge_template(
+    template_text: str,
+    metadata: PlaceForwardUnitMetadataManifest,
+) -> str:
+    rendered = template_text.replace("<unit_id>", metadata.unit_id)
     lines: list[str] = []
     for line in rendered.splitlines():
         stripped = line.strip()
         if stripped.startswith("output_path = "):
-            lines.append(f'output_path = "{toml_string(config.contract_output_path)}"')
+            lines.append(f'output_path = "{toml_string(metadata.contract_output_path)}"')
         elif stripped.startswith("path = "):
-            lines.append(f'path = "{toml_string(config.raw_input_path)}"')
+            lines.append(f'path = "{toml_string(metadata.raw_input_path)}"')
         elif stripped.startswith("input_source_name = "):
-            lines.append(f'input_source_name = "{toml_string(config.input_source_name)}"')
+            lines.append(f'input_source_name = "{toml_string(metadata.input_source_name)}"')
         elif stripped.startswith("input_source_url = "):
-            lines.append(f'input_source_url = "{toml_string(config.input_source_url)}"')
+            lines.append(f'input_source_url = "{toml_string(metadata.input_source_url)}"')
         elif stripped.startswith("input_source_timestamp = "):
             lines.append(
-                f'input_source_timestamp = "{toml_string(config.input_source_timestamp)}"'
+                f'input_source_timestamp = "{toml_string(metadata.input_source_timestamp)}"'
             )
         elif stripped.startswith("odds_observation_timestamp = "):
             lines.append(
-                f'odds_observation_timestamp = "{toml_string(config.odds_observation_timestamp)}"'
+                f'odds_observation_timestamp = "{toml_string(metadata.odds_observation_timestamp)}"'
             )
         elif stripped.startswith("carrier_identity = "):
-            lines.append(f'carrier_identity = "{toml_string(config.carrier_identity)}"')
+            lines.append(f'carrier_identity = "{toml_string(metadata.carrier_identity)}"')
         elif stripped.startswith("default_retry_count = "):
-            lines.append(f"default_retry_count = {config.retry_count}")
+            lines.append(f"default_retry_count = {metadata.retry_count}")
         elif stripped.startswith("default_timeout_seconds = "):
-            timeout_value = int(config.timeout_seconds) if config.timeout_seconds.is_integer() else config.timeout_seconds
+            timeout_value = (
+                int(metadata.timeout_seconds)
+                if metadata.timeout_seconds.is_integer()
+                else metadata.timeout_seconds
+            )
             lines.append(f"default_timeout_seconds = {timeout_value}")
         elif stripped.startswith("default_popularity_input_source = "):
             lines.append(
-                f'default_popularity_input_source = "{toml_string(config.popularity_input_source)}"'
+                f'default_popularity_input_source = "{toml_string(metadata.popularity_input_source)}"'
             )
         else:
             lines.append(line)
     return "\n".join(lines) + "\n"
 
 
-def render_pre_race_template(template_text: str, config: PlaceForwardScaffoldConfig) -> str:
-    rendered = template_text.replace("<unit_id>", config.unit_id)
+def render_pre_race_template(
+    template_text: str,
+    metadata: PlaceForwardUnitMetadataManifest,
+) -> str:
+    rendered = template_text.replace("<unit_id>", metadata.unit_id)
     lines: list[str] = []
     for line in rendered.splitlines():
         stripped = line.strip()
         if stripped.startswith("input_path = "):
-            lines.append(f'input_path = "{toml_string(config.contract_output_path)}"')
+            lines.append(f'input_path = "{toml_string(metadata.contract_output_path)}"')
         elif stripped.startswith("output_dir = "):
-            lines.append(f'output_dir = "{toml_string(config.pre_race_output_dir)}"')
+            lines.append(f'output_dir = "{toml_string(metadata.pre_race_output_dir)}"')
         elif stripped.startswith("dataset_path = "):
-            lines.append(f'dataset_path = "{toml_string(config.dataset_path)}"')
+            lines.append(f'dataset_path = "{toml_string(metadata.dataset_path)}"')
         elif stripped.startswith("model_version = "):
-            lines.append(f'model_version = "{toml_string(config.model_version)}"')
+            lines.append(f'model_version = "{toml_string(metadata.model_version)}"')
         elif stripped.startswith("threshold = "):
-            lines.append(f"threshold = {config.threshold}")
+            lines.append(f"threshold = {metadata.threshold}")
         elif stripped.startswith("candidate_logic_id = "):
-            lines.append(f'candidate_logic_id = "{toml_string(config.candidate_logic_id)}"')
+            lines.append(
+                f'candidate_logic_id = "{toml_string(metadata.candidate_logic_id)}"'
+            )
         elif stripped.startswith("fallback_logic_id = "):
-            lines.append(f'fallback_logic_id = "{toml_string(config.fallback_logic_id)}"')
+            lines.append(
+                f'fallback_logic_id = "{toml_string(metadata.fallback_logic_id)}"'
+            )
         else:
             lines.append(line)
     return "\n".join(lines) + "\n"
 
 
-def render_reconciliation_template(template_text: str, config: PlaceForwardScaffoldConfig) -> str:
-    rendered = template_text.replace("<unit_id>", config.unit_id)
+def render_reconciliation_template(
+    template_text: str,
+    metadata: PlaceForwardUnitMetadataManifest,
+) -> str:
+    rendered = template_text.replace("<unit_id>", metadata.unit_id)
     lines: list[str] = []
     for line in rendered.splitlines():
         stripped = line.strip()
         if stripped.startswith("forward_output_dir = "):
-            lines.append(f'forward_output_dir = "{toml_string(config.pre_race_output_dir)}"')
+            lines.append(f'forward_output_dir = "{toml_string(metadata.pre_race_output_dir)}"')
         elif stripped.startswith("duckdb_path = "):
-            lines.append(f'duckdb_path = "{toml_string(config.duckdb_path)}"')
+            lines.append(f'duckdb_path = "{toml_string(metadata.duckdb_path)}"')
         elif stripped.startswith("output_dir = "):
             lines.append(
-                f'output_dir = "{toml_string(config.reconciliation_output_dir)}"'
+                f'output_dir = "{toml_string(metadata.reconciliation_output_dir)}"'
             )
         elif stripped.startswith("settled_as_of = "):
-            lines.append(f'settled_as_of = "{toml_string(config.settled_as_of)}"')
+            lines.append(f'settled_as_of = "{toml_string(metadata.settled_as_of)}"')
         else:
             lines.append(line)
     return "\n".join(lines) + "\n"
+
+
+def write_unit_metadata_manifest(
+    manifest_path: Path,
+    metadata: PlaceForwardUnitMetadataManifest,
+) -> None:
+    payload = {
+        "unit_id": metadata.unit_id,
+        "config_dir": str(metadata.config_dir),
+        "raw_input_path": str(metadata.raw_input_path),
+        "contract_output_path": str(metadata.contract_output_path),
+        "pre_race_output_dir": str(metadata.pre_race_output_dir),
+        "reconciliation_output_dir": str(metadata.reconciliation_output_dir),
+        "dataset_path": str(metadata.dataset_path),
+        "duckdb_path": str(metadata.duckdb_path),
+        "model_version": metadata.model_version,
+        "candidate_logic_id": metadata.candidate_logic_id,
+        "fallback_logic_id": metadata.fallback_logic_id,
+        "threshold": metadata.threshold,
+        "settled_as_of": metadata.settled_as_of,
+        "input_source_name": metadata.input_source_name,
+        "input_source_url": metadata.input_source_url,
+        "input_source_timestamp": metadata.input_source_timestamp,
+        "odds_observation_timestamp": metadata.odds_observation_timestamp,
+        "carrier_identity": metadata.carrier_identity,
+        "retry_count": metadata.retry_count,
+        "timeout_seconds": metadata.timeout_seconds,
+        "popularity_input_source": metadata.popularity_input_source,
+    }
+    manifest_path.write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def load_unit_metadata_manifest(
+    manifest_path: Path,
+) -> PlaceForwardUnitMetadataManifest:
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    unit_id = validate_unit_id(_required_manifest_string(payload, "unit_id"))
+    return PlaceForwardUnitMetadataManifest(
+        unit_id=unit_id,
+        config_dir=Path(_required_manifest_string(payload, "config_dir")),
+        raw_input_path=Path(_required_manifest_string(payload, "raw_input_path")),
+        contract_output_path=Path(_required_manifest_string(payload, "contract_output_path")),
+        pre_race_output_dir=Path(_required_manifest_string(payload, "pre_race_output_dir")),
+        reconciliation_output_dir=Path(
+            _required_manifest_string(payload, "reconciliation_output_dir")
+        ),
+        dataset_path=Path(_required_manifest_string(payload, "dataset_path")),
+        duckdb_path=Path(_required_manifest_string(payload, "duckdb_path")),
+        model_version=_required_manifest_string(payload, "model_version"),
+        candidate_logic_id=_required_manifest_string(payload, "candidate_logic_id"),
+        fallback_logic_id=_required_manifest_string(payload, "fallback_logic_id"),
+        threshold=_required_manifest_float(payload, "threshold"),
+        settled_as_of=_required_manifest_string(payload, "settled_as_of"),
+        input_source_name=_required_manifest_string(payload, "input_source_name"),
+        input_source_url=_required_manifest_string(payload, "input_source_url"),
+        input_source_timestamp=_required_manifest_string(payload, "input_source_timestamp"),
+        odds_observation_timestamp=_required_manifest_string(
+            payload, "odds_observation_timestamp"
+        ),
+        carrier_identity=_required_manifest_string(payload, "carrier_identity"),
+        retry_count=_required_manifest_int(payload, "retry_count"),
+        timeout_seconds=_required_manifest_float(payload, "timeout_seconds"),
+        popularity_input_source=_required_manifest_string(
+            payload, "popularity_input_source"
+        ),
+    )
+
+
+def _required_manifest_string(payload: dict[str, object], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"unit metadata manifest missing required string field: {key}")
+    return value
+
+
+def _required_manifest_float(payload: dict[str, object], key: str) -> float:
+    value = payload.get(key)
+    if not isinstance(value, int | float):
+        raise ValueError(f"unit metadata manifest missing required numeric field: {key}")
+    return float(value)
+
+
+def _required_manifest_int(payload: dict[str, object], key: str) -> int:
+    value = payload.get(key)
+    if not isinstance(value, int):
+        raise ValueError(f"unit metadata manifest missing required integer field: {key}")
+    return value
 
 
 def toml_string(path_or_text: Path | str) -> str:
@@ -387,9 +623,16 @@ def toml_string(path_or_text: Path | str) -> str:
     return text
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["sync"]:
+        parser = build_scaffold_sync_parser()
+        args = parser.parse_args(argv[1:])
+        run_scaffold_sync(args.metadata_manifest_path, force=bool(args.force))
+        return 0
+
     parser = build_scaffold_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     run_scaffold(build_scaffold_config_from_args(args))
     return 0
 

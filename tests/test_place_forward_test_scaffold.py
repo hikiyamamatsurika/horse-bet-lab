@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from argparse import Namespace
+import json
 from pathlib import Path
 
 import pytest
@@ -10,7 +11,9 @@ from horse_bet_lab.forward_test.raw_snapshot_intake import load_raw_snapshot_int
 from horse_bet_lab.forward_test.runner import load_config
 from horse_bet_lab.forward_test.scaffold import (
     build_scaffold_config_from_args,
+    load_unit_metadata_manifest,
     run_scaffold,
+    run_scaffold_sync,
     validate_unit_id,
 )
 from horse_bet_lab.forward_test.snapshot_bridge import load_snapshot_bridge_config
@@ -51,6 +54,7 @@ def test_scaffold_generates_three_runtime_configs_and_directories(tmp_path: Path
     assert result.bridge_config_path.exists()
     assert result.pre_race_config_path.exists()
     assert result.reconciliation_config_path.exists()
+    assert result.metadata_manifest_path.exists()
     assert result.intake_manifest_path.exists()
     assert result.raw_dir.exists()
     assert result.contract_dir.exists()
@@ -62,6 +66,11 @@ def test_scaffold_generates_three_runtime_configs_and_directories(tmp_path: Path
     assert bridge_config.output_path == config.contract_output_path
     assert bridge_config.sources[0].path == config.raw_input_path
     assert bridge_config.sources[0].input_source_name == "keibalab_public_pre_race_odds"
+
+    metadata_manifest = load_unit_metadata_manifest(result.metadata_manifest_path)
+    assert metadata_manifest.unit_id == "20260426_example_meeting"
+    assert metadata_manifest.model_version == "odds_only_logreg_is_place@scaffold-test"
+    assert metadata_manifest.settled_as_of == "2026-04-26T18:00:00+09:00"
 
     intake_manifest = load_raw_snapshot_intake_manifest(result.intake_manifest_path)
     assert intake_manifest.unit_id == "20260426_example_meeting"
@@ -103,6 +112,49 @@ def test_scaffold_force_overwrites_existing_runtime_configs(tmp_path: Path) -> N
     bridge_after = config.bridge_config_path.read_text(encoding="utf-8")
     assert bridge_after != "# overwritten\n"
     assert bridge_after == bridge_before
+
+
+def test_scaffold_sync_regenerates_configs_from_metadata_manifest(tmp_path: Path) -> None:
+    config = build_scaffold_config_from_args(make_args(tmp_path))
+    result = run_scaffold(config)
+
+    manifest_payload = json.loads(result.metadata_manifest_path.read_text(encoding="utf-8"))
+    manifest_payload["input_source_name"] = "operator_adjusted_source"
+    manifest_payload["settled_as_of"] = "2026-04-27T12:00:00+09:00"
+    manifest_payload["model_version"] = "odds_only_logreg_is_place@adjusted"
+    result.metadata_manifest_path.write_text(
+        json.dumps(manifest_payload, ensure_ascii=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    synced = run_scaffold_sync(result.metadata_manifest_path, force=True)
+
+    bridge_config = load_snapshot_bridge_config(synced.bridge_config_path)
+    assert bridge_config.sources[0].input_source_name == "operator_adjusted_source"
+
+    pre_race_config = load_config(synced.pre_race_config_path)
+    assert pre_race_config.reference_model.model_version == "odds_only_logreg_is_place@adjusted"
+
+    reconciliation_config = load_reconciliation_config(synced.reconciliation_config_path)
+    assert reconciliation_config.settled_as_of == "2026-04-27T12:00:00+09:00"
+
+    intake_manifest = load_raw_snapshot_intake_manifest(synced.intake_manifest_path)
+    assert intake_manifest.input_source_name == "operator_adjusted_source"
+
+
+def test_scaffold_sync_rejects_missing_required_manifest_field(tmp_path: Path) -> None:
+    config = build_scaffold_config_from_args(make_args(tmp_path))
+    result = run_scaffold(config)
+
+    manifest_payload = json.loads(result.metadata_manifest_path.read_text(encoding="utf-8"))
+    manifest_payload["settled_as_of"] = ""
+    result.metadata_manifest_path.write_text(
+        json.dumps(manifest_payload, ensure_ascii=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="missing required string field: settled_as_of"):
+        run_scaffold_sync(result.metadata_manifest_path, force=True)
 
 
 @pytest.mark.parametrize("unit_id", ["", "2026/0426", "2026 0426", "2026?0426"])

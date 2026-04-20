@@ -139,36 +139,46 @@ bridge 前に recurring operator path の raw intake を固定したい場合は
 - input source timestamp
 - odds observation timestamp
 
+recurring operator path で metadata entry を 1 箇所に寄せたい場合は、`notes/unit_metadata_manifest.json` を source of truth にして、bridge / pre-race / reconciliation config を再生成する。
+
 ## How To Run
 
 1. raw/live-ish snapshot CSV を用意する
 2. recurring operator path では、必要なら raw intake manifest を用意して precheck を通す
+3. recurring operator path では、metadata を見直すときは最初に `notes/unit_metadata_manifest.json` を開く
+4. metadata を更新した場合は scaffold sync で bridge / pre-race / reconciliation config を再生成する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.raw_snapshot_intake_cli --bridge-config configs/place_forward_snapshot_bridge.sample.toml
 ```
 
-3. bridge sample config をコピーして、少なくとも次を自分の環境に合わせて置き換える
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli sync \
+  --metadata-manifest-path data/forward_test/runs/<unit_id>/notes/unit_metadata_manifest.json \
+  --force
+```
+
+5. bridge sample config をコピーして、少なくとも次を自分の環境に合わせて置き換える
    - `sources[].path`
    - `sources[].odds_observation_timestamp`
    - `sources[].input_source_name`
    - `output_path`
-4. bridge を実行して contract CSV を生成する
+6. bridge を実行して contract CSV を生成する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.snapshot_bridge_cli --config configs/place_forward_snapshot_bridge.sample.toml
 ```
 
-5. runner config をコピーして、少なくとも次を自分の環境に合わせて置き換える
+7. runner config をコピーして、少なくとも次を自分の環境に合わせて置き換える
    - `input_path`
    - `output_dir`
    - `reference_model.dataset_path`
    - `reference_model.model_version`
-6. current mainline baseline を維持したい場合は、bet logic の次を変えない
+8. current mainline baseline を維持したい場合は、bet logic の次を変えない
    - `candidate_logic_id = "guard_0_01_plus_proxy_domain_overlay"`
    - `fallback_logic_id = "no_bet_guard_stronger"`
    - `stronger_guard_edge_surcharge = 0.01`
-7. pre-race runner を実行する
+9. pre-race runner を実行する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1.sample.toml
