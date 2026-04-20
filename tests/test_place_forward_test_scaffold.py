@@ -65,6 +65,8 @@ def test_scaffold_generates_three_runtime_configs_and_directories(tmp_path: Path
     assert pre_race_config.input_path == config.contract_output_path
     assert pre_race_config.output_dir == config.pre_race_output_dir
     assert pre_race_config.reference_model.dataset_path == config.dataset_path
+    assert pre_race_config.reference_model.model_name == "logistic_regression"
+    assert pre_race_config.reference_model.feature_transforms == ("identity",)
     assert pre_race_config.reference_model.model_version == config.model_version
     assert pre_race_config.bet_logic.threshold == pytest.approx(0.08)
 

@@ -85,13 +85,12 @@ data/forward_test/runs/<unit_id>/notes/
 3. scaffold で 3 つの runtime config をまとめて生成する
 4. bridge config の source metadata と raw path を確認する
 5. pre-race config の `reference_model` を確認する
-6. current odds-only recurring path を使う場合は `model_name = "logistic_regression"` になっていることを確認する
-7. current odds-only recurring path を使う場合は `feature_columns = ["win_odds"]` と `feature_transforms = ["identity"]` の組み合わせになっていることを確認する
-8. bridge を実行する
-9. generated contract CSV と bridge manifest を確認する
-10. current baseline の bet logic identifiers が変わっていないことを確認する
-11. pre-race runner を実行する
-12. `bet_decision_records.csv` と `run_manifest.json` を確認する
+6. current odds-only recurring path を使う場合は `feature_columns = ["win_odds"]` と `feature_transforms = ["identity"]` の組み合わせになっていることを軽く確認する
+7. bridge を実行する
+8. generated contract CSV と bridge manifest を確認する
+9. current baseline の bet logic identifiers が変わっていないことを確認する
+10. pre-race runner を実行する
+11. `bet_decision_records.csv` と `run_manifest.json` を確認する
 
 ### Post-race checklist
 
@@ -177,10 +176,10 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli \
 - scaffold は hidden fallback を入れない
 - 既存 config がある場合は default で overwrite せず clear error で止まる
 - 生成後に source metadata や `settled_as_of` を見直してから bridge / pre-race / reconciliation を実行する
-- current odds-only recurring path では、generated pre-race config の `model_name = "logistic_regression"` と `feature_transforms = ["identity"]` を確認する
+- current odds-only recurring path 向けの scaffold default は `model_name = "logistic_regression"` と `feature_transforms = ["identity"]`
 - operator smoke では、scaffold 実行後の still-manual は主に 2 系統だった
   - raw snapshot を `raw/input_snapshot_raw.csv` に置くこと
-  - pre-race config の `reference_model` を current odds-only path に合わせて確認すること
+  - pre-race config の `reference_model` を軽く見直すこと
 
 ## Boundaries
 
