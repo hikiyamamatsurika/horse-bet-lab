@@ -1,0 +1,9 @@
+# Runtime template for recurring place-only forward-test reconciliation runs.
+# Copy this file per rehearsal unit and replace placeholder values.
+
+[place_forward_reconciliation]
+name = "place_forward_test_reconciliation_<unit_id>"
+forward_output_dir = "data/artifacts/place_forward_test/<unit_id>/pre_race"
+duckdb_path = "data/artifacts/jrdb_2023_2025_supported_full.duckdb"
+output_dir = "data/artifacts/place_forward_test/<unit_id>/reconciliation"
+settled_as_of = "2026-04-20T18:00:00+09:00"
