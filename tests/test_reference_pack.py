@@ -57,10 +57,16 @@ def test_mainline_reference_runbook_exists() -> None:
     content = runbook_path.read_text(encoding="utf-8")
 
     assert "reference_pack_dual_market_logreg_mainline_2023_2025" in content
+    assert "Popularity Carrier Decision" in content
+    assert "unresolved_keep_legacy_for_non-mainline_only" in content
     assert "strategy_summary.csv" in content
     assert "oos_backtest_summary.csv" in content
     assert "uncertainty_summary.csv" in content
     assert "stateful_bankroll_summary.csv" in content
+    assert "Current Reading" in content
+    assert "race_date block bootstrap" in content
+    assert "race_internal_permutation" in content
+    assert "古い数値" in content
 
 
 def test_reference_pack_manifest_verify_roundtrip(tmp_path: Path) -> None:

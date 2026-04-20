@@ -227,9 +227,9 @@ def test_build_horse_dataset_uses_win_market_snapshot_for_win_odds_and_legacy_se
     )
     definitions = {row["canonical_name"]: row for row in payload["feature_definitions"]}
     assert definitions["win_odds"]["carrier_identity"] == "win_market_snapshot_v1"
-    assert definitions["popularity"]["carrier_identity"] == "legacy_sed_only"
+    assert definitions["popularity"]["carrier_identity"] == "legacy_sed_only_non_mainline"
     assert payload["feature_source_summary"]["by_carrier_identity"] == {
-        "legacy_sed_only": 1,
+        "legacy_sed_only_non_mainline": 1,
         "win_market_snapshot_v1": 1,
     }
 

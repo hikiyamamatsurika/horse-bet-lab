@@ -80,7 +80,8 @@ v1 では `model_feature_columns` は必ず dataset schema 上の feature 列の
 
 - feature の `availability timing` は「その値を正当に意思決定に使える最も早い時点」で判定する
 - ただし v1 では `historical carrier timing` も別途意識する
-- 今回の整理では `win_odds` だけを先行して pre-race carrier contract へ移し、`popularity` は未確認のため `legacy_sed_only` として残す
+- 今回の整理では `win_odds` だけを先行して pre-race carrier contract へ移し、`popularity` は未確認のため `legacy_sed_only_non_mainline` として残す
+- popularity carrier resolution spike の判断として、`popularity` は `unresolved_keep_legacy_for_non-mainline_only` とする
 
 ### Leakage Prohibition
 
@@ -121,7 +122,7 @@ v1 では `model_feature_columns` は必ず dataset schema 上の feature 列の
 | feature | class | source | availability timing | train | eval | backtest | leakage risk | missing handling | notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `win_odds` | upstream raw, market-derived | `jrdb_win_market_snapshot_v1.win_odds` | pre-race | allow | allow via provenance | allow | low-to-medium | carrier missing -> `NULL` | current carrier row is project-owned and populated from `OZ.win_basis_odds`; provenance carrier identity is `win_market_snapshot_v1` |
-| `popularity` | upstream raw, market-derived | `SED.popularity` | pre-race semantic, post-race carrier in current offline build | allow | allow via provenance | allow | medium | parse failure -> `NULL` | ordinal rank。pre-race carrier is not yet confirmed; provenance carrier identity is `legacy_sed_only` |
+| `popularity` | upstream raw, market-derived | `SED.popularity` | pre-race semantic, post-race carrier in current offline build | allow for legacy/research only | allow via provenance | allow for legacy/research only | medium | parse failure -> `NULL` | ordinal rank。pre-race carrier is not yet confirmed; provenance carrier identity is `legacy_sed_only_non_mainline` |
 | `place_basis_odds` | upstream raw, market-derived | `OZ.place_basis_odds` | pre-race | allow | allow via provenance | allow | low | parse failure -> `NULL` | live proxy では `place_basis_odds_proxy` alias を使う |
 | `headcount` | upstream raw, market-derived support field | `OZ.headcount` | pre-race | allow | allow via provenance | allow | low | parse failure -> `NULL` | provisional semantics。place market array header 由来 |
 | `distance_m` | upstream raw | `BAC.distance_m` | pre-race | allow | allow via provenance | allow | low | upstream null -> `NULL` | model parity では numeric feature としてのみ使用可 |
@@ -206,7 +207,6 @@ post-race or result-only:
 ### Fully Parity-Safe In Current Numeric Model Path
 
 - `win_odds`
-- `popularity`
 - `place_basis_odds`
 - `headcount`
 - `distance_m`
@@ -224,6 +224,18 @@ post-race or result-only:
 - dataset build で列化されている
 - `validate_model_feature_spec(...)` が train/rolling_retrain 入力として受理する
 - backtest rolling retrain でも同じ列順契約を持てる
+- ただし mainline approval とは同義ではない
+
+### Technically Supported But Mainline-Ineligible
+
+- `popularity`
+
+意味:
+
+- 実装上は dataset / train / rolling_retrain / provenance で引き続き扱える
+- ただし carrier decision は `unresolved_keep_legacy_for_non-mainline_only`
+- したがって mainline では confirmed carrier feature として扱わない
+- popularity を使う path は legacy / research / auxiliary に限定する
 
 ### Dataset-Only Or Non-Parity-Safe In Current Path
 
@@ -240,6 +252,10 @@ post-race or result-only:
 ## Approved Feature Sets In v1
 
 `dataset_feature_set` と `model_feature_columns` の対応は、少なくとも以下の範囲に固定する。
+
+この節は implementation support の一覧であり、mainline approval 一覧ではありません。
+popularity を含む feature set は、carrier decision が unresolved のままなので
+`non-mainline only` として扱います。
 
 | dataset_feature_set | intended model_feature_columns |
 | --- | --- |
