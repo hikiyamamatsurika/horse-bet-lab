@@ -62,6 +62,7 @@ data/forward_test/runs/<unit_id>/notes/
   - reconciliation output を置く
 - `notes/`
   - operator memo や週次メモを置く
+  - `unit_metadata_manifest.json` を置く
 
 命名原則:
 
@@ -84,10 +85,10 @@ data/forward_test/runs/<unit_id>/notes/
 1. 今日の rehearsal unit id を決める
 2. raw snapshot CSV を `raw/` に置く
 3. scaffold で 3 つの runtime config と raw intake manifest をまとめて生成する
-4. `raw/raw_snapshot_intake_manifest.json` の `unit_id`, `raw_snapshot_path`, `source_family`, `input_source_name`, `input_source_url`, `input_source_timestamp`, `odds_observation_timestamp` を確認する
-5. bridge 前に raw intake precheck を実行して、raw file present と expected raw columns を確認する
-6. pre-race config の `reference_model` を確認する
-7. current odds-only recurring path を使う場合は `feature_columns = ["win_odds"]` と `feature_transforms = ["identity"]` の組み合わせになっていることを軽く確認する
+4. まず `notes/unit_metadata_manifest.json` を開いて、`model_version`, `input_source_*`, `odds_observation_timestamp`, `popularity_input_source`, `settled_as_of` を 1 箇所で見直す
+5. metadata を直した場合は scaffold sync で bridge / pre-race / reconciliation config と intake manifest を再生成する
+6. `raw/raw_snapshot_intake_manifest.json` の `unit_id`, `raw_snapshot_path`, `source_family`, `input_source_name`, `input_source_url`, `input_source_timestamp`, `odds_observation_timestamp` を確認する
+7. bridge 前に raw intake precheck を実行して、raw file present と expected raw columns を確認する
 8. bridge を実行する
 9. generated contract CSV と bridge manifest を確認する
 10. current baseline の bet logic identifiers が変わっていないことを確認する
@@ -96,7 +97,7 @@ data/forward_test/runs/<unit_id>/notes/
 
 ### Post-race checklist
 
-1. scaffold が生成した reconciliation config の `duckdb_path` / `settled_as_of` を確認する
+1. `notes/unit_metadata_manifest.json` の `settled_as_of` と `duckdb_path` を確認する
 2. reconciliation 前に result DB availability check を実行する
 3. `result_availability_check.txt` を見て、`should_settle` か `expected_pending_or_stale_db` かを確認する
 4. `expected_pending_or_stale_db` のときは `DB freshness summary` の `result_side_freshness_vs_settled_as_of` / `payout_side_freshness_vs_settled_as_of` / `operator_freshness_hint` を見る
@@ -120,6 +121,7 @@ data/forward_test/runs/<unit_id>/notes/
 最初に見る場所:
 
 - intake / bridge 前確認:
+  - `notes/unit_metadata_manifest.json`
   - `raw/raw_snapshot_intake_manifest.json`
 - bridge 成功確認:
   - `contract/input_snapshot_<unit_id>.summary.txt`
@@ -181,13 +183,23 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli \
 - `data/forward_test/runs/<unit_id>/raw/raw_snapshot_intake_manifest.json`
 - `data/forward_test/runs/<unit_id>/contract/`
 - `data/forward_test/runs/<unit_id>/notes/`
+- `data/forward_test/runs/<unit_id>/notes/unit_metadata_manifest.json`
 
 注意:
 
 - scaffold は hidden fallback を入れない
 - 既存 config がある場合は default で overwrite せず clear error で止まる
-- 生成後に source metadata や `settled_as_of` を見直してから bridge / pre-race / reconciliation を実行する
+- operator が最初に見る 1 ファイルは `notes/unit_metadata_manifest.json`
+- source metadata や `settled_as_of` を直したいときは、その 1 ファイルを更新してから scaffold sync で derived files を再生成する
 - raw intake helper を使うと、bridge 前に raw file present / source metadata / expected raw columns をまとめて確認できる
+- scaffold sync 例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli sync \
+  --metadata-manifest-path data/forward_test/runs/<unit_id>/notes/unit_metadata_manifest.json \
+  --force
+```
+
 - precheck 例:
 
 ```bash
