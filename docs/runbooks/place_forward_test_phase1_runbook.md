@@ -130,30 +130,45 @@ bridge output:
 - bridge manifest
 - bridge summary text
 
+bridge 前に recurring operator path の raw intake を固定したい場合は、`raw_snapshot_intake_manifest.json` と precheck helper を使って次を確認する:
+
+- raw snapshot file present
+- expected raw columns
+- source family / source name
+- source URL
+- input source timestamp
+- odds observation timestamp
+
 ## How To Run
 
 1. raw/live-ish snapshot CSV を用意する
-2. bridge sample config をコピーして、少なくとも次を自分の環境に合わせて置き換える
+2. recurring operator path では、必要なら raw intake manifest を用意して precheck を通す
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.raw_snapshot_intake_cli --bridge-config configs/place_forward_snapshot_bridge.sample.toml
+```
+
+3. bridge sample config をコピーして、少なくとも次を自分の環境に合わせて置き換える
    - `sources[].path`
    - `sources[].odds_observation_timestamp`
    - `sources[].input_source_name`
    - `output_path`
-3. bridge を実行して contract CSV を生成する
+4. bridge を実行して contract CSV を生成する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.snapshot_bridge_cli --config configs/place_forward_snapshot_bridge.sample.toml
 ```
 
-4. runner config をコピーして、少なくとも次を自分の環境に合わせて置き換える
+5. runner config をコピーして、少なくとも次を自分の環境に合わせて置き換える
    - `input_path`
    - `output_dir`
    - `reference_model.dataset_path`
    - `reference_model.model_version`
-5. current mainline baseline を維持したい場合は、bet logic の次を変えない
+6. current mainline baseline を維持したい場合は、bet logic の次を変えない
    - `candidate_logic_id = "guard_0_01_plus_proxy_domain_overlay"`
    - `fallback_logic_id = "no_bet_guard_stronger"`
    - `stronger_guard_edge_surcharge = 0.01`
-6. pre-race runner を実行する
+7. pre-race runner を実行する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1.sample.toml
@@ -178,13 +193,14 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli
 ## Minimal Phase 1 Operation Flow
 
 1. raw/live-ish snapshot CSV を確認する
-2. bridge を実行して contract CSV を生成する
-3. generated contract CSV と bridge manifest を確認する
-4. pre-race runner を実行する
-5. `bet_decision_records.csv` と `run_manifest.json` を確認する
-6. レース結果が確定したら reconciliation config を用意する
-7. reconciliation を実行する
-8. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
+2. raw intake manifest / precheck で bridge 前確認を行う
+3. bridge を実行して contract CSV を生成する
+4. generated contract CSV と bridge manifest を確認する
+5. pre-race runner を実行する
+6. `bet_decision_records.csv` と `run_manifest.json` を確認する
+7. レース結果が確定したら reconciliation config を用意する
+8. reconciliation を実行する
+9. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
 
 operator rehearsal で最短確認したい点:
 

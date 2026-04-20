@@ -53,6 +53,7 @@ data/forward_test/runs/<unit_id>/notes/
 
 - `raw/`
   - live-ish snapshot input を置く
+  - `raw_snapshot_intake_manifest.json` も同じ場所に置く
 - `contract/`
   - bridge で生成した contract CSV / JSON / manifest を置く
 - `pre_race/`
@@ -82,15 +83,16 @@ data/forward_test/runs/<unit_id>/notes/
 
 1. 今日の rehearsal unit id を決める
 2. raw snapshot CSV を `raw/` に置く
-3. scaffold で 3 つの runtime config をまとめて生成する
-4. bridge config の source metadata と raw path を確認する
-5. pre-race config の `reference_model` を確認する
-6. current odds-only recurring path を使う場合は `feature_columns = ["win_odds"]` と `feature_transforms = ["identity"]` の組み合わせになっていることを軽く確認する
-7. bridge を実行する
-8. generated contract CSV と bridge manifest を確認する
-9. current baseline の bet logic identifiers が変わっていないことを確認する
-10. pre-race runner を実行する
-11. `bet_decision_records.csv` と `run_manifest.json` を確認する
+3. scaffold で 3 つの runtime config と raw intake manifest をまとめて生成する
+4. `raw/raw_snapshot_intake_manifest.json` の `unit_id`, `raw_snapshot_path`, `source_family`, `input_source_name`, `input_source_url`, `input_source_timestamp`, `odds_observation_timestamp` を確認する
+5. bridge 前に raw intake precheck を実行して、raw file present と expected raw columns を確認する
+6. pre-race config の `reference_model` を確認する
+7. current odds-only recurring path を使う場合は `feature_columns = ["win_odds"]` と `feature_transforms = ["identity"]` の組み合わせになっていることを軽く確認する
+8. bridge を実行する
+9. generated contract CSV と bridge manifest を確認する
+10. current baseline の bet logic identifiers が変わっていないことを確認する
+11. pre-race runner を実行する
+12. `bet_decision_records.csv` と `run_manifest.json` を確認する
 
 ### Post-race checklist
 
@@ -115,6 +117,8 @@ data/forward_test/runs/<unit_id>/notes/
 
 最初に見る場所:
 
+- intake / bridge 前確認:
+  - `raw/raw_snapshot_intake_manifest.json`
 - bridge 成功確認:
   - `contract/input_snapshot_<unit_id>.summary.txt`
   - `contract/input_snapshot_<unit_id>.manifest.json`
@@ -168,6 +172,7 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli \
 - `configs/recurring_rehearsal/<unit_id>.pre_race.toml`
 - `configs/recurring_rehearsal/<unit_id>.reconciliation.toml`
 - `data/forward_test/runs/<unit_id>/raw/`
+- `data/forward_test/runs/<unit_id>/raw/raw_snapshot_intake_manifest.json`
 - `data/forward_test/runs/<unit_id>/contract/`
 - `data/forward_test/runs/<unit_id>/notes/`
 
@@ -176,6 +181,14 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli \
 - scaffold は hidden fallback を入れない
 - 既存 config がある場合は default で overwrite せず clear error で止まる
 - 生成後に source metadata や `settled_as_of` を見直してから bridge / pre-race / reconciliation を実行する
+- raw intake helper を使うと、bridge 前に raw file present / source metadata / expected raw columns をまとめて確認できる
+- precheck 例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.raw_snapshot_intake_cli \
+  --bridge-config configs/recurring_rehearsal/<unit_id>.bridge.toml
+```
+
 - current odds-only recurring path 向けの scaffold default は `model_name = "logistic_regression"` と `feature_transforms = ["identity"]`
 - operator smoke では、scaffold 実行後の still-manual は主に 2 系統だった
   - raw snapshot を `raw/input_snapshot_raw.csv` に置くこと

@@ -4,6 +4,12 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 
+from horse_bet_lab.forward_test.raw_snapshot_intake import (
+    build_default_raw_snapshot_intake_manifest,
+    default_intake_manifest_path,
+    write_raw_snapshot_intake_manifest,
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_TEMPLATE_DIR = REPO_ROOT / "configs" / "templates"
@@ -58,6 +64,7 @@ class PlaceForwardScaffoldResult:
     bridge_config_path: Path
     pre_race_config_path: Path
     reconciliation_config_path: Path
+    intake_manifest_path: Path
     raw_dir: Path
     contract_dir: Path
     notes_dir: Path
@@ -218,11 +225,13 @@ def validate_unit_id(unit_id: str) -> str:
 
 
 def run_scaffold(config: PlaceForwardScaffoldConfig) -> PlaceForwardScaffoldResult:
+    intake_manifest_path = default_intake_manifest_path(config.raw_input_path)
     ensure_outputs_do_not_exist(
         (
             config.bridge_config_path,
             config.pre_race_config_path,
             config.reconciliation_config_path,
+            intake_manifest_path,
         ),
         force=config.force,
     )
@@ -256,11 +265,25 @@ def run_scaffold(config: PlaceForwardScaffoldConfig) -> PlaceForwardScaffoldResu
     config.bridge_config_path.write_text(bridge_text, encoding="utf-8")
     config.pre_race_config_path.write_text(pre_race_text, encoding="utf-8")
     config.reconciliation_config_path.write_text(reconciliation_text, encoding="utf-8")
+    write_raw_snapshot_intake_manifest(
+        intake_manifest_path,
+        build_default_raw_snapshot_intake_manifest(
+            unit_id=config.unit_id,
+            raw_snapshot_path=config.raw_input_path,
+            source_family=config.input_source_name,
+            input_source_name=config.input_source_name,
+            input_source_url=config.input_source_url,
+            input_source_timestamp=config.input_source_timestamp,
+            odds_observation_timestamp=config.odds_observation_timestamp,
+            carrier_identity=config.carrier_identity,
+        ),
+    )
 
     return PlaceForwardScaffoldResult(
         bridge_config_path=config.bridge_config_path,
         pre_race_config_path=config.pre_race_config_path,
         reconciliation_config_path=config.reconciliation_config_path,
+        intake_manifest_path=intake_manifest_path,
         raw_dir=config.raw_input_path.parent,
         contract_dir=config.contract_output_path.parent,
         notes_dir=config.notes_dir,

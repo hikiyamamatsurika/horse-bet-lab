@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from horse_bet_lab.forward_test.reconciliation import load_reconciliation_config
+from horse_bet_lab.forward_test.raw_snapshot_intake import load_raw_snapshot_intake_manifest
 from horse_bet_lab.forward_test.runner import load_config
 from horse_bet_lab.forward_test.scaffold import (
     build_scaffold_config_from_args,
@@ -23,10 +24,10 @@ def make_args(tmp_path: Path, *, force: bool = False) -> Namespace:
         model_version="odds_only_logreg_is_place@scaffold-test",
         settled_as_of="2026-04-26T18:00:00+09:00",
         config_dir=tmp_path / "configs",
-        raw_input_path=None,
-        contract_output_path=None,
-        pre_race_output_dir=None,
-        reconciliation_output_dir=None,
+        raw_input_path=tmp_path / "runs" / "20260426_example_meeting" / "raw" / "input_snapshot_raw.csv",
+        contract_output_path=tmp_path / "runs" / "20260426_example_meeting" / "contract" / "input_snapshot_20260426_example_meeting.csv",
+        pre_race_output_dir=tmp_path / "artifacts" / "20260426_example_meeting" / "pre_race",
+        reconciliation_output_dir=tmp_path / "artifacts" / "20260426_example_meeting" / "reconciliation",
         candidate_logic_id="guard_0_01_plus_proxy_domain_overlay",
         fallback_logic_id="no_bet_guard_stronger",
         threshold=0.08,
@@ -50,6 +51,7 @@ def test_scaffold_generates_three_runtime_configs_and_directories(tmp_path: Path
     assert result.bridge_config_path.exists()
     assert result.pre_race_config_path.exists()
     assert result.reconciliation_config_path.exists()
+    assert result.intake_manifest_path.exists()
     assert result.raw_dir.exists()
     assert result.contract_dir.exists()
     assert result.notes_dir.exists()
@@ -60,6 +62,11 @@ def test_scaffold_generates_three_runtime_configs_and_directories(tmp_path: Path
     assert bridge_config.output_path == config.contract_output_path
     assert bridge_config.sources[0].path == config.raw_input_path
     assert bridge_config.sources[0].input_source_name == "keibalab_public_pre_race_odds"
+
+    intake_manifest = load_raw_snapshot_intake_manifest(result.intake_manifest_path)
+    assert intake_manifest.unit_id == "20260426_example_meeting"
+    assert intake_manifest.raw_snapshot_path == str(config.raw_input_path)
+    assert intake_manifest.source_family == "keibalab_public_pre_race_odds"
 
     pre_race_config = load_config(result.pre_race_config_path)
     assert pre_race_config.input_path == config.contract_output_path
