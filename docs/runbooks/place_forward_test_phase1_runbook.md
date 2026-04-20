@@ -141,12 +141,23 @@ bridge 前に recurring operator path の raw intake を固定したい場合は
 
 recurring operator path で metadata entry を 1 箇所に寄せたい場合は、`notes/unit_metadata_manifest.json` を source of truth にして、bridge / pre-race / reconciliation config を再生成する。
 
+known local contract-like source family から raw-ish input CSV を作るときは、`raw_snapshot_prepare_cli` の preset を使って `place_basis_odds` を `place_basis_odds_proxy` へ明示的に揃える。
+
 ## How To Run
 
 1. raw/live-ish snapshot CSV を用意する
 2. recurring operator path では、必要なら raw intake manifest を用意して precheck を通す
 3. recurring operator path では、metadata を見直すときは最初に `notes/unit_metadata_manifest.json` を開く
 4. metadata を更新した場合は scaffold sync で bridge / pre-race / reconciliation config を再生成する
+5. current known contract-like source family を raw-ish bridge input に寄せたい場合は、prepare helper を使う
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.raw_snapshot_prepare_cli \
+  --preset place_forward_contract_like_csv_v1 \
+  --input-path data/forward_test/place_phase1_example/input_snapshot_satsuki_sho_2025_04_20.csv \
+  --output-path data/forward_test/runs/<unit_id>/raw/input_snapshot_raw.csv \
+  --force
+```
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.raw_snapshot_intake_cli --bridge-config configs/place_forward_snapshot_bridge.sample.toml
@@ -158,27 +169,27 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli sync 
   --force
 ```
 
-5. bridge sample config をコピーして、少なくとも次を自分の環境に合わせて置き換える
+6. bridge sample config をコピーして、少なくとも次を自分の環境に合わせて置き換える
    - `sources[].path`
    - `sources[].odds_observation_timestamp`
    - `sources[].input_source_name`
    - `output_path`
-6. bridge を実行して contract CSV を生成する
+7. bridge を実行して contract CSV を生成する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.snapshot_bridge_cli --config configs/place_forward_snapshot_bridge.sample.toml
 ```
 
-7. runner config をコピーして、少なくとも次を自分の環境に合わせて置き換える
+8. runner config をコピーして、少なくとも次を自分の環境に合わせて置き換える
    - `input_path`
    - `output_dir`
    - `reference_model.dataset_path`
    - `reference_model.model_version`
-8. current mainline baseline を維持したい場合は、bet logic の次を変えない
+9. current mainline baseline を維持したい場合は、bet logic の次を変えない
    - `candidate_logic_id = "guard_0_01_plus_proxy_domain_overlay"`
    - `fallback_logic_id = "no_bet_guard_stronger"`
    - `stronger_guard_edge_surcharge = 0.01`
-9. pre-race runner を実行する
+10. pre-race runner を実行する
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config configs/place_forward_test_phase1.sample.toml
