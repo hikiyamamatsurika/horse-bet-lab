@@ -6,6 +6,8 @@
 
 対象は `horse_bet_lab.forward_test.runner` の Phase 1 path です。runner 本体のロジックはここでは変更しません。
 
+繰り返し運用の cadence / checklist / naming rule は [docs/runbooks/place_forward_test_phase1_recurring_rehearsal.md](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/docs/runbooks/place_forward_test_phase1_recurring_rehearsal.md:1) を参照してください。
+
 ## Scope
 
 - 複勝一本
