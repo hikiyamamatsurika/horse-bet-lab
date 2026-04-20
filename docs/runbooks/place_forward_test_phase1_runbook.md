@@ -201,8 +201,9 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli
 7. レース結果が確定したら reconciliation config を用意する
 8. result DB availability check を実行する
 9. `result_availability_check.txt` / `.json` を見て `should_settle` か `expected_pending_or_stale_db` かを確認する
-10. reconciliation を実行する
-11. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
+10. `expected_pending_or_stale_db` のときは `DB freshness summary` を見て、`result_side_freshness_vs_settled_as_of` と `operator_freshness_hint` を先に読む
+11. reconciliation を実行する
+12. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
 
 operator rehearsal で最短確認したい点:
 
@@ -223,6 +224,15 @@ post-race reconciliation 例:
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.result_db_availability_cli --config configs/place_forward_test_reconciliation.sample.toml
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli --config configs/place_forward_test_reconciliation.sample.toml
 ```
+
+availability check の読み方:
+
+- `result_side_freshness_vs_settled_as_of = result_side_behind_settled_as_of`
+  - local DuckDB が今回の reconciliation window に追いついていない可能性を先に疑う
+- `result_side_freshness_vs_settled_as_of = result_side_covers_settled_as_of`
+  - DB 全体は window をカバーしているので、target race missing / partial loading を疑う
+- `payout_side_freshness_vs_settled_as_of = payout_side_behind_settled_as_of`
+  - finish result は見えていても payout side の反映待ちの可能性がある
 
 end-to-end operator rehearsal 例:
 

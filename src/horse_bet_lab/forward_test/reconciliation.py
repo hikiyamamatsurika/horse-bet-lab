@@ -204,12 +204,14 @@ def run_place_forward_result_db_availability_check(
         duckdb_path=config.duckdb_path,
         race_keys=race_keys,
     )
+    db_freshness_summary = load_result_db_freshness_summary(duckdb_path=config.duckdb_path)
     payload = build_result_availability_summary_payload(
         config=config,
         bundle=bundle,
         result_rows=result_rows,
         sed_race_summary=sed_race_summary,
         hjc_race_summary=hjc_race_summary,
+        db_freshness_summary=db_freshness_summary,
     )
     summary_json_path = config.output_dir / "result_availability_check.json"
     summary_json_path.write_text(
@@ -413,6 +415,98 @@ def load_result_availability_race_summary(
     return sed_output, hjc_output
 
 
+def load_result_db_freshness_summary(*, duckdb_path: Path) -> dict[str, Any]:
+    connection = duckdb.connect(str(duckdb_path), read_only=True)
+    try:
+        latest_sed_result_date = connection.execute(
+            """
+            SELECT CAST(MAX(result_date) AS VARCHAR)
+            FROM jrdb_sed_staging
+            WHERE result_date IS NOT NULL
+            """
+        ).fetchone()[0]
+        sed_races_on_latest_result_date = 0
+        if latest_sed_result_date is not None:
+            sed_races_on_latest_result_date = int(
+                connection.execute(
+                    """
+                    SELECT COUNT(DISTINCT race_key)
+                    FROM jrdb_sed_staging
+                    WHERE result_date = CAST(? AS DATE)
+                    """,
+                    [latest_sed_result_date],
+                ).fetchone()[0]
+                or 0
+            )
+        total_sed_races = int(
+            connection.execute(
+                """
+                SELECT COUNT(DISTINCT race_key)
+                FROM jrdb_sed_staging
+                """
+            ).fetchone()[0]
+            or 0
+        )
+
+        latest_hjc_result_date = connection.execute(
+            """
+            WITH hjc_race_dates AS (
+                SELECT
+                    h.race_key,
+                    MAX(s.result_date) AS result_date
+                FROM jrdb_hjc_staging h
+                LEFT JOIN jrdb_sed_staging s
+                    ON h.race_key = s.race_key
+                GROUP BY h.race_key
+            )
+            SELECT CAST(MAX(result_date) AS VARCHAR)
+            FROM hjc_race_dates
+            WHERE result_date IS NOT NULL
+            """
+        ).fetchone()[0]
+        hjc_races_on_latest_result_date = 0
+        if latest_hjc_result_date is not None:
+            hjc_races_on_latest_result_date = int(
+                connection.execute(
+                    """
+                    WITH hjc_race_dates AS (
+                        SELECT
+                            h.race_key,
+                            MAX(s.result_date) AS result_date
+                        FROM jrdb_hjc_staging h
+                        LEFT JOIN jrdb_sed_staging s
+                            ON h.race_key = s.race_key
+                        GROUP BY h.race_key
+                    )
+                    SELECT COUNT(*)
+                    FROM hjc_race_dates
+                    WHERE result_date = CAST(? AS DATE)
+                    """,
+                    [latest_hjc_result_date],
+                ).fetchone()[0]
+                or 0
+            )
+        total_hjc_races = int(
+            connection.execute(
+                """
+                SELECT COUNT(DISTINCT race_key)
+                FROM jrdb_hjc_staging
+                """
+            ).fetchone()[0]
+            or 0
+        )
+    finally:
+        connection.close()
+    return {
+        "latest_sed_result_date": str(latest_sed_result_date) if latest_sed_result_date is not None else None,
+        "sed_races_on_latest_result_date": sed_races_on_latest_result_date,
+        "total_sed_races": total_sed_races,
+        "latest_hjc_result_date": str(latest_hjc_result_date) if latest_hjc_result_date is not None else None,
+        "hjc_races_on_latest_result_date": hjc_races_on_latest_result_date,
+        "total_hjc_races": total_hjc_races,
+    }
+
+
 def reconcile_forward_records(
     *,
     bundle: ForwardArtifactBundle,
@@ -577,6 +671,7 @@ def build_result_availability_summary_payload(
     result_rows: dict[tuple[str, int], PlaceForwardResultRecord],
     sed_race_summary: dict[str, dict[str, int]],
     hjc_race_summary: dict[str, dict[str, int]],
+    db_freshness_summary: dict[str, Any],
 ) -> dict[str, Any]:
     requested_keys = {(record.race_key, record.horse_number) for record in bundle.input_records}
     bet_keys = {
@@ -685,6 +780,11 @@ def build_result_availability_summary_payload(
 
     settled_as_of_assessment = "not_provided"
     latest_known_result_date: str | None = None
+    unit_latest_observation_timestamp = max(record.odds_observation_timestamp for record in bundle.input_records)
+    unit_latest_observation_date = datetime.fromisoformat(unit_latest_observation_timestamp).date().isoformat()
+    result_side_freshness = "settled_as_of_not_provided"
+    payout_side_freshness = "settled_as_of_not_provided"
+    operator_freshness_hint = "provide_settled_as_of_to_compare_db_coverage"
     if config.settled_as_of is not None:
         known_result_dates = sorted(
             {
@@ -703,6 +803,21 @@ def build_result_availability_summary_payload(
                 settled_as_of_assessment = "compatible_with_known_result_dates"
             else:
                 settled_as_of_assessment = "earlier_than_latest_known_result_date"
+        result_side_freshness = assess_result_db_freshness_against_settled_as_of(
+            latest_result_date=db_freshness_summary.get("latest_sed_result_date"),
+            settled_as_of=config.settled_as_of,
+            prefix="result_side",
+        )
+        payout_side_freshness = assess_result_db_freshness_against_settled_as_of(
+            latest_result_date=db_freshness_summary.get("latest_hjc_result_date"),
+            settled_as_of=config.settled_as_of,
+            prefix="payout_side",
+        )
+        operator_freshness_hint = build_result_db_operator_freshness_hint(
+            recommendation=recommendation,
+            result_side_freshness=result_side_freshness,
+            payout_side_freshness=payout_side_freshness,
+        )
 
     return {
         "run_name": config.name,
@@ -712,6 +827,14 @@ def build_result_availability_summary_payload(
         "settled_as_of": config.settled_as_of,
         "settled_as_of_assessment": settled_as_of_assessment,
         "latest_known_result_date": latest_known_result_date,
+        "db_freshness_summary": {
+            **db_freshness_summary,
+            "unit_latest_observation_timestamp": unit_latest_observation_timestamp,
+            "unit_latest_observation_date": unit_latest_observation_date,
+            "result_side_freshness_vs_settled_as_of": result_side_freshness,
+            "payout_side_freshness_vs_settled_as_of": payout_side_freshness,
+            "operator_freshness_hint": operator_freshness_hint,
+        },
         "aggregate": {
             "total_races": len(race_key_order),
             "total_requested_records": len(requested_keys),
@@ -725,6 +848,47 @@ def build_result_availability_summary_payload(
         "recommendation_reason": recommendation_reason,
         "race_summaries": race_summaries,
     }
+
+
+def assess_result_db_freshness_against_settled_as_of(
+    *,
+    latest_result_date: str | None,
+    settled_as_of: str | None,
+    prefix: str,
+) -> str:
+    if settled_as_of is None:
+        return "settled_as_of_not_provided"
+    if latest_result_date is None:
+        return f"no_known_{prefix}_dates_in_db"
+    settled_as_of_date = datetime.fromisoformat(settled_as_of).date()
+    latest_date = datetime.fromisoformat(f"{latest_result_date}T00:00:00+00:00").date()
+    if latest_date < settled_as_of_date:
+        return f"{prefix}_behind_settled_as_of"
+    return f"{prefix}_covers_settled_as_of"
+
+
+def build_result_db_operator_freshness_hint(
+    *,
+    recommendation: str,
+    result_side_freshness: str,
+    payout_side_freshness: str,
+) -> str:
+    if result_side_freshness == "settled_as_of_not_provided":
+        return "provide_settled_as_of_to_compare_db_coverage"
+    if result_side_freshness == "no_known_result_side_dates_in_db":
+        return "db_has_no_known_result_dates_yet"
+    if result_side_freshness == "result_side_behind_settled_as_of":
+        return "local_result_db_may_be_stale_for_this_reconciliation_window"
+    if (
+        recommendation == RESULT_DB_AVAILABILITY_EXPECTED_PENDING_OR_STALE_DB
+        and result_side_freshness == "result_side_covers_settled_as_of"
+    ):
+        return "result_side_covers_settled_as_of_but_target_race_is_still_missing"
+    if payout_side_freshness == "payout_side_behind_settled_as_of":
+        return "finish_results_reach_settled_as_of_but_payout_side_may_still_be_behind"
+    if payout_side_freshness == "no_known_payout_side_dates_in_db":
+        return "payout_side_has_no_known_result_dates_yet"
+    return "db_coverage_looks_compatible_with_settled_as_of"
 
 
 def write_reconciliation_summary_text(*, path: Path, summary_payload: dict[str, Any]) -> None:
@@ -762,6 +926,7 @@ def write_reconciliation_summary_text(*, path: Path, summary_payload: dict[str, 
 
 def write_result_availability_summary_text(*, path: Path, summary_payload: dict[str, Any]) -> None:
     aggregate = summary_payload["aggregate"]
+    db_freshness_summary = summary_payload["db_freshness_summary"]
     lines = [
         f"place forward-test result availability check: {summary_payload['run_name']}",
         "",
@@ -770,6 +935,25 @@ def write_result_availability_summary_text(*, path: Path, summary_payload: dict[
         f"settled_as_of: {summary_payload['settled_as_of']}",
         f"settled_as_of_assessment: {summary_payload['settled_as_of_assessment']}",
         f"latest_known_result_date: {summary_payload['latest_known_result_date']}",
+        "",
+        "DB freshness summary",
+        f"unit_latest_observation_timestamp: {db_freshness_summary['unit_latest_observation_timestamp']}",
+        f"unit_latest_observation_date: {db_freshness_summary['unit_latest_observation_date']}",
+        f"latest_sed_result_date: {db_freshness_summary['latest_sed_result_date']}",
+        f"sed_races_on_latest_result_date: {db_freshness_summary['sed_races_on_latest_result_date']}",
+        f"total_sed_races: {db_freshness_summary['total_sed_races']}",
+        f"latest_hjc_result_date: {db_freshness_summary['latest_hjc_result_date']}",
+        f"hjc_races_on_latest_result_date: {db_freshness_summary['hjc_races_on_latest_result_date']}",
+        f"total_hjc_races: {db_freshness_summary['total_hjc_races']}",
+        (
+            "result_side_freshness_vs_settled_as_of: "
+            f"{db_freshness_summary['result_side_freshness_vs_settled_as_of']}"
+        ),
+        (
+            "payout_side_freshness_vs_settled_as_of: "
+            f"{db_freshness_summary['payout_side_freshness_vs_settled_as_of']}"
+        ),
+        f"operator_freshness_hint: {db_freshness_summary['operator_freshness_hint']}",
         "",
         f"total_races: {aggregate['total_races']}",
         f"total_requested_records: {aggregate['total_requested_records']}",

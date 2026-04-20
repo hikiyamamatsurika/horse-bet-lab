@@ -320,6 +320,92 @@ def create_result_duckdb_missing_hjc(path: Path) -> None:
         connection.close()
 
 
+def create_result_duckdb_stale_for_settled_as_of(path: Path) -> None:
+    connection = duckdb.connect(str(path))
+    try:
+        connection.execute(
+            """
+            CREATE TABLE jrdb_sed_staging (
+                race_key VARCHAR,
+                horse_number INTEGER,
+                result_date DATE,
+                finish_position INTEGER
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO jrdb_sed_staging VALUES
+                ('11111111', 1, DATE '2026-04-20', 1),
+                ('11111111', 2, DATE '2026-04-20', 5)
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE jrdb_hjc_staging (
+                race_key VARCHAR,
+                place_horse_number_1 INTEGER,
+                place_payout_1 DOUBLE,
+                place_horse_number_2 INTEGER,
+                place_payout_2 DOUBLE,
+                place_horse_number_3 INTEGER,
+                place_payout_3 DOUBLE
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO jrdb_hjc_staging VALUES
+                ('11111111', 1, 180.0, 3, 220.0, 4, 150.0)
+            """
+        )
+    finally:
+        connection.close()
+
+
+def create_result_duckdb_target_missing_but_db_fresh(path: Path) -> None:
+    connection = duckdb.connect(str(path))
+    try:
+        connection.execute(
+            """
+            CREATE TABLE jrdb_sed_staging (
+                race_key VARCHAR,
+                horse_number INTEGER,
+                result_date DATE,
+                finish_position INTEGER
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO jrdb_sed_staging VALUES
+                ('99999999', 1, DATE '2026-04-21', 1),
+                ('99999999', 2, DATE '2026-04-21', 5)
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE jrdb_hjc_staging (
+                race_key VARCHAR,
+                place_horse_number_1 INTEGER,
+                place_payout_1 DOUBLE,
+                place_horse_number_2 INTEGER,
+                place_payout_2 DOUBLE,
+                place_horse_number_3 INTEGER,
+                place_payout_3 DOUBLE
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO jrdb_hjc_staging VALUES
+                ('99999999', 1, 180.0, 3, 220.0, 4, 150.0)
+            """
+        )
+    finally:
+        connection.close()
+
+
 def write_reconciliation_config(path: Path, forward_output_dir: Path, duckdb_path: Path, output_dir: Path) -> None:
     path.write_text(
         (
@@ -396,3 +482,44 @@ def test_result_db_availability_check_reports_missing_payout_side(tmp_path: Path
     assert payload["aggregate"]["races_with_hjc_rows"] == 1
     race_222 = next(row for row in payload["race_summaries"] if row["race_key"] == "22222222")
     assert race_222["recommendation"] == RESULT_DB_AVAILABILITY_INCOMPLETE_PAYOUT_SIDE
+
+
+def test_result_db_availability_check_reports_result_side_behind_settled_as_of(tmp_path: Path) -> None:
+    forward_output_dir = tmp_path / "forward_output"
+    duckdb_path = tmp_path / "results_stale.duckdb"
+    output_dir = tmp_path / "reconciliation_output"
+    config_path = tmp_path / "reconciliation.toml"
+
+    create_forward_output_dir(forward_output_dir)
+    create_result_duckdb_stale_for_settled_as_of(duckdb_path)
+    write_reconciliation_config(config_path, forward_output_dir, duckdb_path, output_dir)
+
+    run_place_forward_result_db_availability_check(load_reconciliation_config(config_path))
+
+    payload = json.loads((output_dir / "result_availability_check.json").read_text(encoding="utf-8"))
+    freshness = payload["db_freshness_summary"]
+    assert freshness["latest_sed_result_date"] == "2026-04-20"
+    assert freshness["result_side_freshness_vs_settled_as_of"] == "result_side_behind_settled_as_of"
+    assert freshness["operator_freshness_hint"] == "local_result_db_may_be_stale_for_this_reconciliation_window"
+    text_summary = (output_dir / "result_availability_check.txt").read_text(encoding="utf-8")
+    assert "operator_freshness_hint: local_result_db_may_be_stale_for_this_reconciliation_window" in text_summary
+
+
+def test_result_db_availability_check_reports_target_missing_despite_db_covering_window(tmp_path: Path) -> None:
+    forward_output_dir = tmp_path / "forward_output"
+    duckdb_path = tmp_path / "results_target_missing.duckdb"
+    output_dir = tmp_path / "reconciliation_output"
+    config_path = tmp_path / "reconciliation.toml"
+
+    create_forward_output_dir(forward_output_dir)
+    create_result_duckdb_target_missing_but_db_fresh(duckdb_path)
+    write_reconciliation_config(config_path, forward_output_dir, duckdb_path, output_dir)
+
+    result = run_place_forward_result_db_availability_check(load_reconciliation_config(config_path))
+
+    assert result.recommendation == RESULT_DB_AVAILABILITY_EXPECTED_PENDING_OR_STALE_DB
+    payload = json.loads((output_dir / "result_availability_check.json").read_text(encoding="utf-8"))
+    freshness = payload["db_freshness_summary"]
+    assert freshness["latest_sed_result_date"] == "2026-04-21"
+    assert freshness["result_side_freshness_vs_settled_as_of"] == "result_side_covers_settled_as_of"
+    assert freshness["operator_freshness_hint"] == "result_side_covers_settled_as_of_but_target_race_is_still_missing"
