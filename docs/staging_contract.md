@@ -2,7 +2,7 @@
 
 この文書は、`raw -> staging` の取り込み結果を downstream がどう扱ってよいかを定義するための contract です。
 
-対象は現時点で `BAC`、`CHA`、`SED` です。ここでいう contract は、dataset builder が安全に参照してよい列、粒度、主キー候補、列の安定度を明文化したものです。
+対象は現時点で `BAC`、`CHA`、`SED` と project-owned pre-race win market contract です。ここでいう contract は、dataset builder が安全に参照してよい列、粒度、主キー候補、列の安定度を明文化したものです。
 
 ## Status Definitions
 
@@ -31,6 +31,16 @@ domain/group は upstream enum ではなく project-owned derived mapping とし
 - grain: 1 row per `race_key + horse_number`
 - primary key candidate: `race_key`, `horse_number`
 
+### `jrdb_pre_race_market_staging`
+
+- grain: 1 row per `race_key + horse_number`
+- primary key candidate: `race_key`, `horse_number`
+
+### `jrdb_win_market_snapshot_v1`
+
+- grain: 1 row per `race_key + horse_number`
+- primary key candidate: `race_key`, `horse_number`
+
 ## Dataset Builder Allowlist
 
 dataset builder が参照してよい列は以下に限定します。
@@ -54,11 +64,21 @@ dataset builder が参照してよい列は以下に限定します。
 
 ### SED allowlist
 
-- `win_odds`
 - `popularity`
 
-`SED` は主に target 生成用 staging として扱いますが、`odds_only` feature set では
-`win_odds` を必須、`popularity` を optional feature として参照できます。
+`SED` は主に target 生成用 staging として扱います。`popularity` は pre-race carrier 未確認のため、
+legacy / non-mainline path からだけ optional feature として参照します。
+
+### Pre-race win market contract
+
+- physical staging:
+  - `jrdb_pre_race_market_staging`
+- stable view:
+  - `jrdb_win_market_snapshot_v1`
+- current carrier mapping:
+  - `win_odds <- OZ.win_basis_odds -> jrdb_pre_race_market_staging -> jrdb_win_market_snapshot_v1`
+- current non-goal:
+  - `popularity` を同じ contract に載せない
 
 ## Data Dictionary
 
@@ -101,8 +121,24 @@ dataset builder が参照してよい列は以下に限定します。
 | `horse_name` | confirmed | deny | horse name in result file |
 | `distance_m` | provisional | deny | redundant with BAC distance |
 | `finish_position` | confirmed | deny | target generation source column |
-| `win_odds` | provisional | allow | allowed only for `odds_only` feature set |
-| `popularity` | provisional | allow | optional and allowed only for `odds_only` feature set |
+| `win_odds` | provisional | deny | legacy result-side value retained for traceability only; dataset builder uses `jrdb_win_market_snapshot_v1.win_odds` |
+| `popularity` | provisional | allow | optional and allowed only on the `legacy_sed_only_non_mainline` path |
+
+### `jrdb_pre_race_market_staging`
+
+| column | status | dataset use | notes |
+| --- | --- | --- | --- |
+| `race_key` | confirmed | allow | market snapshot join key |
+| `horse_number` | confirmed | allow | market snapshot join key |
+| `win_odds` | provisional | allow | current pre-race carrier value derived from `OZ.win_basis_odds` |
+
+### `jrdb_win_market_snapshot_v1`
+
+| column | status | dataset use | notes |
+| --- | --- | --- | --- |
+| `race_key` | confirmed | allow | stable contract key |
+| `horse_number` | confirmed | allow | stable contract key |
+| `win_odds` | provisional | allow | stable downstream carrier for win market odds |
 
 ## Confirmed vs Provisional
 
@@ -133,6 +169,7 @@ opaque:
 - dataset builder は allowlist 外の列を参照しない
 - `opaque` 列は traceability 専用であり、特徴量化や join key に使わない
 - `provisional` 列を dataset builder で使う場合も、この contract の allowlist に含まれる列のみに限定する
-- `SED` の `win_odds` / `popularity` は `odds_only` feature set からだけ参照する
+- `win_odds` は `jrdb_win_market_snapshot_v1` から参照する
+- `popularity` は pre-race carrier 未確認のため、`SED` legacy / non-mainline path からだけ参照する
 - `SED` の `finish_position` は target 生成専用であり feature に流さない
 - parser を更新しても、allowlist と grain を壊す変更は別 Issue で明示的に扱う

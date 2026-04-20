@@ -93,7 +93,7 @@ FEATURE_REGISTRY: dict[str, FeatureDefinition] = {
         numeric_or_not=True,
         source_class="upstream_raw_market",
         timing_class="pre_race_semantic_post_race_carrier",
-        carrier_identity="legacy_sed_only",
+        carrier_identity="legacy_sed_only_non_mainline",
         leakage_allowed=True,
     ),
     "place_basis_odds": FeatureDefinition(
