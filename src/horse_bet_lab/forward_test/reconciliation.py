@@ -26,6 +26,10 @@ RECONCILIATION_STATUS_SETTLED_MISS = "settled_miss"
 RECONCILIATION_STATUS_SETTLED_NO_BET = "settled_no_bet"
 RECONCILIATION_STATUS_UNSETTLED_RESULT_PENDING = "unsettled_result_pending"
 RECONCILIATION_STATUS_UNSETTLED_RESULT_INCOMPLETE = "unsettled_result_incomplete"
+RESULT_DB_AVAILABILITY_SHOULD_SETTLE = "should_settle"
+RESULT_DB_AVAILABILITY_EXPECTED_PENDING_OR_STALE_DB = "expected_pending_or_stale_db"
+RESULT_DB_AVAILABILITY_PARTIAL_RESULTS = "result_db_partial_results"
+RESULT_DB_AVAILABILITY_INCOMPLETE_PAYOUT_SIDE = "result_db_incomplete_payout_side"
 
 
 @dataclass(frozen=True)
@@ -83,9 +87,35 @@ class PlaceForwardReconciliationResult:
     total_simulated_profit_loss: float
 
 
+@dataclass(frozen=True)
+class PlaceForwardResultAvailabilityCheckResult:
+    output_dir: Path
+    run_name: str
+    recommendation: str
+    total_races: int
+    total_requested_records: int
+    total_requested_bets: int
+    races_with_sed_rows: int
+    races_with_hjc_rows: int
+    requested_records_with_known_results: int
+
+
 def build_reconciliation_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Reconcile place-only forward-test artifacts against settled race results.",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+        help="Path to a place forward-test reconciliation TOML config.",
+    )
+    return parser
+
+
+def build_result_db_availability_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Check whether result DB state looks ready for place forward-test reconciliation.",
     )
     parser.add_argument(
         "--config",
@@ -160,6 +190,47 @@ def run_place_forward_reconciliation(
         hit_count=int(summary_payload["hit_count"]),
         total_simulated_payout=float(summary_payload["total_simulated_payout"]),
         total_simulated_profit_loss=float(summary_payload["total_simulated_profit_loss"]),
+    )
+
+
+def run_place_forward_result_db_availability_check(
+    config: PlaceForwardReconciliationConfig,
+) -> PlaceForwardResultAvailabilityCheckResult:
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    bundle = load_forward_artifact_bundle(config.forward_output_dir)
+    race_keys = tuple(sorted({record.race_key for record in bundle.input_records}))
+    result_rows = load_result_rows(duckdb_path=config.duckdb_path, race_keys=race_keys)
+    sed_race_summary, hjc_race_summary = load_result_availability_race_summary(
+        duckdb_path=config.duckdb_path,
+        race_keys=race_keys,
+    )
+    payload = build_result_availability_summary_payload(
+        config=config,
+        bundle=bundle,
+        result_rows=result_rows,
+        sed_race_summary=sed_race_summary,
+        hjc_race_summary=hjc_race_summary,
+    )
+    summary_json_path = config.output_dir / "result_availability_check.json"
+    summary_json_path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    write_result_availability_summary_text(
+        path=config.output_dir / "result_availability_check.txt",
+        summary_payload=payload,
+    )
+    aggregate = payload["aggregate"]
+    return PlaceForwardResultAvailabilityCheckResult(
+        output_dir=config.output_dir,
+        run_name=str(payload["run_name"]),
+        recommendation=str(payload["recommendation"]),
+        total_races=int(aggregate["total_races"]),
+        total_requested_records=int(aggregate["total_requested_records"]),
+        total_requested_bets=int(aggregate["total_requested_bets"]),
+        races_with_sed_rows=int(aggregate["races_with_sed_rows"]),
+        races_with_hjc_rows=int(aggregate["races_with_hjc_rows"]),
+        requested_records_with_known_results=int(aggregate["requested_records_with_known_results"]),
     )
 
 
@@ -265,6 +336,81 @@ def load_result_rows(
             official_place_payout=float(payout) if payout is not None else None,
         )
     return output
+
+
+def load_result_availability_race_summary(
+    *,
+    duckdb_path: Path,
+    race_keys: tuple[str, ...],
+) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+    if not race_keys:
+        return {}, {}
+    connection = duckdb.connect(str(duckdb_path), read_only=True)
+    try:
+        placeholders = ", ".join(["?"] * len(race_keys))
+        sed_rows = connection.execute(
+            f"""
+            SELECT
+                race_key,
+                COUNT(*) AS sed_rows_found,
+                SUM(
+                    CASE
+                        WHEN result_date IS NOT NULL AND finish_position IS NOT NULL THEN 1
+                        ELSE 0
+                    END
+                ) AS known_result_rows
+            FROM jrdb_sed_staging
+            WHERE race_key IN ({placeholders})
+            GROUP BY race_key
+            ORDER BY race_key
+            """,
+            [*race_keys],
+        ).fetchall()
+        hjc_rows = connection.execute(
+            f"""
+            WITH place_payout_rows AS (
+                SELECT race_key, place_horse_number_1 AS horse_number
+                FROM jrdb_hjc_staging
+                WHERE place_horse_number_1 IS NOT NULL
+                UNION ALL
+                SELECT race_key, place_horse_number_2 AS horse_number
+                FROM jrdb_hjc_staging
+                WHERE place_horse_number_2 IS NOT NULL
+                UNION ALL
+                SELECT race_key, place_horse_number_3 AS horse_number
+                FROM jrdb_hjc_staging
+                WHERE place_horse_number_3 IS NOT NULL
+            )
+            SELECT
+                h.race_key,
+                COUNT(*) AS hjc_rows_found,
+                COUNT(p.horse_number) AS payout_rows_found
+            FROM jrdb_hjc_staging h
+            LEFT JOIN place_payout_rows p
+                ON h.race_key = p.race_key
+            WHERE h.race_key IN ({placeholders})
+            GROUP BY h.race_key
+            ORDER BY h.race_key
+            """,
+            [*race_keys],
+        ).fetchall()
+    finally:
+        connection.close()
+    sed_output = {
+        str(race_key): {
+            "sed_rows_found": int(sed_rows_found),
+            "known_result_rows": int(known_result_rows or 0),
+        }
+        for race_key, sed_rows_found, known_result_rows in sed_rows
+    }
+    hjc_output = {
+        str(race_key): {
+            "hjc_rows_found": int(hjc_rows_found),
+            "payout_rows_found": int(payout_rows_found or 0),
+        }
+        for race_key, hjc_rows_found, payout_rows_found in hjc_rows
+    }
+    return sed_output, hjc_output
 
 
 def reconcile_forward_records(
@@ -424,6 +570,163 @@ def build_reconciliation_summary_payload(
     }
 
 
+def build_result_availability_summary_payload(
+    *,
+    config: PlaceForwardReconciliationConfig,
+    bundle: ForwardArtifactBundle,
+    result_rows: dict[tuple[str, int], PlaceForwardResultRecord],
+    sed_race_summary: dict[str, dict[str, int]],
+    hjc_race_summary: dict[str, dict[str, int]],
+) -> dict[str, Any]:
+    requested_keys = {(record.race_key, record.horse_number) for record in bundle.input_records}
+    bet_keys = {
+        (record.race_key, record.horse_number)
+        for record in bundle.decision_records
+        if record.bet_action == "bet"
+    }
+    race_key_order = tuple(sorted({record.race_key for record in bundle.input_records}))
+    requested_keys_by_race: dict[str, set[tuple[str, int]]] = {}
+    bet_keys_by_race: dict[str, set[tuple[str, int]]] = {}
+    for key in requested_keys:
+        requested_keys_by_race.setdefault(key[0], set()).add(key)
+    for key in bet_keys:
+        bet_keys_by_race.setdefault(key[0], set()).add(key)
+
+    race_summaries: list[dict[str, Any]] = []
+    for race_key in race_key_order:
+        requested_race_keys = requested_keys_by_race.get(race_key, set())
+        bet_race_keys = bet_keys_by_race.get(race_key, set())
+        matched_rows = {
+            key: row
+            for key, row in result_rows.items()
+            if key in requested_race_keys
+        }
+        known_result_count = sum(
+            1
+            for row in matched_rows.values()
+            if row.result_date is not None and row.finish_position is not None
+        )
+        bet_known_result_count = sum(
+            1
+            for key, row in matched_rows.items()
+            if key in bet_race_keys and row.result_date is not None and row.finish_position is not None
+        )
+        payout_match_count = sum(
+            1
+            for key, row in matched_rows.items()
+            if key in bet_race_keys and row.official_place_payout is not None
+        )
+        sed_summary = sed_race_summary.get(race_key, {})
+        hjc_summary = hjc_race_summary.get(race_key, {})
+        hjc_row_present = int(hjc_summary.get("hjc_rows_found", 0)) > 0
+        if known_result_count == len(requested_race_keys) and hjc_row_present:
+            race_recommendation = RESULT_DB_AVAILABILITY_SHOULD_SETTLE
+        elif known_result_count == 0 and int(sed_summary.get("sed_rows_found", 0)) == 0:
+            race_recommendation = RESULT_DB_AVAILABILITY_EXPECTED_PENDING_OR_STALE_DB
+        elif known_result_count == len(requested_race_keys) and not hjc_row_present:
+            race_recommendation = RESULT_DB_AVAILABILITY_INCOMPLETE_PAYOUT_SIDE
+        else:
+            race_recommendation = RESULT_DB_AVAILABILITY_PARTIAL_RESULTS
+        race_summaries.append(
+            {
+                "race_key": race_key,
+                "requested_records": len(requested_race_keys),
+                "requested_bets": len(bet_race_keys),
+                "sed_rows_found": int(sed_summary.get("sed_rows_found", 0)),
+                "known_result_rows": known_result_count,
+                "hjc_row_present": hjc_row_present,
+                "payout_rows_found": int(hjc_summary.get("payout_rows_found", 0)),
+                "bet_records_with_known_results": bet_known_result_count,
+                "bet_records_with_payout_rows": payout_match_count,
+                "recommendation": race_recommendation,
+            }
+        )
+
+    requested_records_with_known_results = sum(
+        1
+        for key in requested_keys
+        if (row := result_rows.get(key)) is not None
+        and row.result_date is not None
+        and row.finish_position is not None
+    )
+    requested_bets_with_known_results = sum(
+        1
+        for key in bet_keys
+        if (row := result_rows.get(key)) is not None
+        and row.result_date is not None
+        and row.finish_position is not None
+    )
+    races_with_sed_rows = sum(1 for race_key in race_key_order if race_key in sed_race_summary)
+    races_with_hjc_rows = sum(
+        1 for race_key in race_key_order if int(hjc_race_summary.get(race_key, {}).get("hjc_rows_found", 0)) > 0
+    )
+    all_results_known = requested_records_with_known_results == len(requested_keys)
+    all_hjc_present = races_with_hjc_rows == len(race_key_order)
+    if all_results_known and all_hjc_present:
+        recommendation = RESULT_DB_AVAILABILITY_SHOULD_SETTLE
+        recommendation_reason = (
+            "all requested records have known finish results and payout-side rows exist for each race"
+        )
+    elif requested_records_with_known_results == 0 and races_with_sed_rows == 0:
+        recommendation = RESULT_DB_AVAILABILITY_EXPECTED_PENDING_OR_STALE_DB
+        recommendation_reason = (
+            "none of the unit races are present in jrdb_sed_staging yet, so pending is still expected or the DB is stale"
+        )
+    elif all_results_known and not all_hjc_present:
+        recommendation = RESULT_DB_AVAILABILITY_INCOMPLETE_PAYOUT_SIDE
+        recommendation_reason = (
+            "finish results are present for all requested records, but payout-side rows are still missing for some races"
+        )
+    else:
+        recommendation = RESULT_DB_AVAILABILITY_PARTIAL_RESULTS
+        recommendation_reason = (
+            "some requested records are present in the result DB, but the unit does not look fully settled yet"
+        )
+
+    settled_as_of_assessment = "not_provided"
+    latest_known_result_date: str | None = None
+    if config.settled_as_of is not None:
+        known_result_dates = sorted(
+            {
+                row.result_date
+                for row in result_rows.values()
+                if row.result_date is not None
+            }
+        )
+        latest_known_result_date = known_result_dates[-1] if known_result_dates else None
+        if latest_known_result_date is None:
+            settled_as_of_assessment = "no_known_result_dates_in_db"
+        else:
+            settled_as_of_date = datetime.fromisoformat(config.settled_as_of).date()
+            latest_result_date = datetime.fromisoformat(f"{latest_known_result_date}T00:00:00+00:00").date()
+            if settled_as_of_date >= latest_result_date:
+                settled_as_of_assessment = "compatible_with_known_result_dates"
+            else:
+                settled_as_of_assessment = "earlier_than_latest_known_result_date"
+
+    return {
+        "run_name": config.name,
+        "checked_timestamp": datetime.now(timezone.utc).isoformat(),
+        "forward_output_dir": str(config.forward_output_dir),
+        "duckdb_path": str(config.duckdb_path),
+        "settled_as_of": config.settled_as_of,
+        "settled_as_of_assessment": settled_as_of_assessment,
+        "latest_known_result_date": latest_known_result_date,
+        "aggregate": {
+            "total_races": len(race_key_order),
+            "total_requested_records": len(requested_keys),
+            "total_requested_bets": len(bet_keys),
+            "races_with_sed_rows": races_with_sed_rows,
+            "races_with_hjc_rows": races_with_hjc_rows,
+            "requested_records_with_known_results": requested_records_with_known_results,
+            "requested_bets_with_known_results": requested_bets_with_known_results,
+        },
+        "recommendation": recommendation,
+        "recommendation_reason": recommendation_reason,
+        "race_summaries": race_summaries,
+    }
+
+
 def write_reconciliation_summary_text(*, path: Path, summary_payload: dict[str, Any]) -> None:
     lines = [
         f"place forward-test reconciliation summary: {summary_payload['run_name']}",
@@ -454,6 +757,41 @@ def write_reconciliation_summary_text(*, path: Path, summary_payload: dict[str, 
     )
     for status in sorted(summary_payload["reconciliation_status_counts"]):
         lines.append(f"- {status}: {summary_payload['reconciliation_status_counts'][status]}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_result_availability_summary_text(*, path: Path, summary_payload: dict[str, Any]) -> None:
+    aggregate = summary_payload["aggregate"]
+    lines = [
+        f"place forward-test result availability check: {summary_payload['run_name']}",
+        "",
+        f"recommendation: {summary_payload['recommendation']}",
+        f"recommendation_reason: {summary_payload['recommendation_reason']}",
+        f"settled_as_of: {summary_payload['settled_as_of']}",
+        f"settled_as_of_assessment: {summary_payload['settled_as_of_assessment']}",
+        f"latest_known_result_date: {summary_payload['latest_known_result_date']}",
+        "",
+        f"total_races: {aggregate['total_races']}",
+        f"total_requested_records: {aggregate['total_requested_records']}",
+        f"total_requested_bets: {aggregate['total_requested_bets']}",
+        f"races_with_sed_rows: {aggregate['races_with_sed_rows']}",
+        f"races_with_hjc_rows: {aggregate['races_with_hjc_rows']}",
+        f"requested_records_with_known_results: {aggregate['requested_records_with_known_results']}",
+        f"requested_bets_with_known_results: {aggregate['requested_bets_with_known_results']}",
+        "",
+        "Race summaries",
+    ]
+    for race_summary in summary_payload["race_summaries"]:
+        lines.append(
+            "- "
+            f"{race_summary['race_key']}: requested_records={race_summary['requested_records']} "
+            f"requested_bets={race_summary['requested_bets']} "
+            f"sed_rows_found={race_summary['sed_rows_found']} "
+            f"known_result_rows={race_summary['known_result_rows']} "
+            f"hjc_row_present={race_summary['hjc_row_present']} "
+            f"bet_records_with_payout_rows={race_summary['bet_records_with_payout_rows']} "
+            f"recommendation={race_summary['recommendation']}"
+        )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
