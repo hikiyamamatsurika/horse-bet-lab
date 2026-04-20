@@ -1,0 +1,6 @@
+[place_forward_reconciliation]
+name = "place_forward_test_reconciliation_20260419_satsuki_sho"
+forward_output_dir = "data/artifacts/place_forward_test/20260419_satsuki_sho/pre_race"
+duckdb_path = "data/artifacts/jrdb_2023_2025_supported_full.duckdb"
+output_dir = "data/artifacts/place_forward_test/20260419_satsuki_sho/reconciliation"
+settled_as_of = "2026-04-20T18:00:00+09:00"
