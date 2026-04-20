@@ -99,10 +99,11 @@ data/forward_test/runs/<unit_id>/notes/
 1. scaffold が生成した reconciliation config の `duckdb_path` / `settled_as_of` を確認する
 2. reconciliation 前に result DB availability check を実行する
 3. `result_availability_check.txt` を見て、`should_settle` か `expected_pending_or_stale_db` かを確認する
-4. reconciliation を実行する
-5. `reconciled_records.csv` を確認する
-6. `reconciliation_summary.json` を確認する
-7. `settled_hit`, `settled_miss`, `settled_no_bet`, `unsettled_*` の件数を確認する
+4. `expected_pending_or_stale_db` のときは `DB freshness summary` の `result_side_freshness_vs_settled_as_of` / `payout_side_freshness_vs_settled_as_of` / `operator_freshness_hint` を見る
+5. reconciliation を実行する
+6. `reconciled_records.csv` を確認する
+7. `reconciliation_summary.json` を確認する
+8. `settled_hit`, `settled_miss`, `settled_no_bet`, `unsettled_*` の件数を確認する
 
 ### Weekly / periodic checklist
 
@@ -145,6 +146,7 @@ data/forward_test/runs/<unit_id>/notes/
 - `unsettled_result_pending`, `unsettled_result_incomplete`
   - まだ結果確認が閉じていない
   - reconciliation 前に `result_availability_check` で `expected_pending_or_stale_db` や `result_db_partial_results` が出ていれば、operator 手順ミスではなく result DB freshness の問題を先に疑う
+  - とくに `operator_freshness_hint = local_result_db_may_be_stale_for_this_reconciliation_window` なら local DuckDB 側の鮮度を先に確認する
 
 ## Template Files
 
