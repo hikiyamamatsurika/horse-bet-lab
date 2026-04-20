@@ -35,6 +35,14 @@ from horse_bet_lab.forward_test.snapshot_bridge import (
     load_snapshot_bridge_config,
     run_snapshot_bridge,
 )
+from horse_bet_lab.forward_test.scaffold import (
+    PlaceForwardScaffoldConfig,
+    PlaceForwardScaffoldResult,
+    build_scaffold_config_from_args,
+    build_scaffold_parser,
+    run_scaffold,
+    validate_unit_id,
+)
 
 __all__ = [
     "PLACE_FORWARD_TEST_CONTRACT_VERSION",
@@ -51,19 +59,25 @@ __all__ = [
     "PlaceForwardReconciliationConfig",
     "PlaceForwardReconciliationResult",
     "PlaceForwardRunResult",
+    "PlaceForwardScaffoldConfig",
+    "PlaceForwardScaffoldResult",
     "PlaceForwardSnapshotBridgeConfig",
     "PlaceForwardSnapshotBridgeResult",
     "PlaceForwardTestConfig",
     "build_place_forward_artifact_provenance",
     "build_parser",
     "build_reconciliation_parser",
+    "build_scaffold_config_from_args",
+    "build_scaffold_parser",
     "build_snapshot_bridge_parser",
     "load_config",
     "load_reconciliation_config",
     "load_snapshot_bridge_config",
     "run_place_forward_reconciliation",
+    "run_scaffold",
     "run_snapshot_bridge",
     "run_place_forward_test",
     "validate_place_forward_input_record",
     "validate_place_forward_input_records",
+    "validate_unit_id",
 ]
