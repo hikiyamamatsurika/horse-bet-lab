@@ -1,0 +1,31 @@
+# Runtime template for recurring place-only forward-test Phase 1 pre-race runs.
+# Copy this file per rehearsal unit and replace placeholder values.
+
+[place_forward_test]
+name = "place_forward_test_phase1_20250420_satsuki_sho_scaffold_smoke"
+input_path = "data/forward_test/runs/20250420_satsuki_sho_scaffold_smoke/contract/input_snapshot_20250420_satsuki_sho_scaffold_smoke.csv"
+output_dir = "data/artifacts/place_forward_test/20250420_satsuki_sho_scaffold_smoke/pre_race"
+input_schema_version = "place_forward_test_input_v1"
+
+[place_forward_test.reference_model]
+dataset_path = "data/processed/horse_dataset_odds_only_is_place.parquet"
+model_name = "logistic_regression"
+feature_columns = ["win_odds"]
+feature_transforms = ["identity"]
+target_column = "target_value"
+split_column = "split"
+training_splits = ["train", "valid", "test"]
+max_iter = 1000
+model_version = "odds_only_logreg_is_place@20250420_satsuki_sho_scaffold_smoke"
+
+[place_forward_test.reference_model.model_params]
+random_state = 42
+
+[place_forward_test.bet_logic]
+selection_metric = "edge"
+threshold = 0.08
+stake_per_bet = 100.0
+stronger_guard_edge_surcharge = 0.01
+candidate_logic_id = "guard_0_01_plus_proxy_domain_overlay"
+fallback_logic_id = "no_bet_guard_stronger"
+formal_domain_mapping_confirmed = true
