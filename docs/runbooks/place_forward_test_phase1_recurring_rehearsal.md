@@ -82,18 +82,20 @@ data/forward_test/runs/<unit_id>/notes/
 
 1. 今日の rehearsal unit id を決める
 2. raw snapshot CSV を `raw/` に置く
-3. `configs/templates/place_forward_snapshot_bridge_runtime.template.toml` をコピーして source path と metadata を埋める
-4. bridge を実行する
-5. generated contract CSV と bridge manifest を確認する
-6. `configs/templates/place_forward_test_phase1_runtime.template.toml` をコピーして `input_path` / `output_dir` / `dataset_path` / `model_version` を埋める
-7. current baseline の bet logic identifiers が変わっていないことを確認する
-8. pre-race runner を実行する
-9. `bet_decision_records.csv` と `run_manifest.json` を確認する
+3. scaffold で 3 つの runtime config をまとめて生成する
+4. bridge config の source metadata と raw path を確認する
+5. pre-race config の `reference_model` を確認する
+6. current odds-only recurring path を使う場合は `feature_columns = ["win_odds"]` と `feature_transforms = ["identity"]` の組み合わせになっていることを軽く確認する
+7. bridge を実行する
+8. generated contract CSV と bridge manifest を確認する
+9. current baseline の bet logic identifiers が変わっていないことを確認する
+10. pre-race runner を実行する
+11. `bet_decision_records.csv` と `run_manifest.json` を確認する
 
 ### Post-race checklist
 
 1. result DB が対象開催まで更新済みかを確認する
-2. `configs/templates/place_forward_test_reconciliation_runtime.template.toml` をコピーして `forward_output_dir` / `duckdb_path` / `output_dir` / `settled_as_of` を埋める
+2. scaffold が生成した reconciliation config の `duckdb_path` / `settled_as_of` を確認する
 3. reconciliation を実行する
 4. `reconciled_records.csv` を確認する
 5. `reconciliation_summary.json` を確認する
@@ -144,6 +146,40 @@ data/forward_test/runs/<unit_id>/notes/
   - [configs/templates/place_forward_test_phase1_runtime.template.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/templates/place_forward_test_phase1_runtime.template.toml)
 - reconciliation runtime template:
   - [configs/templates/place_forward_test_reconciliation_runtime.template.toml](/Users/matsurimbpblack/Library/Mobile%20Documents/com~apple~CloudDocs/codex_projects/horse-bet-lab/configs/templates/place_forward_test_reconciliation_runtime.template.toml)
+
+## Scaffold Helper
+
+run-unit ごとの 3 config を毎回手で複製したくない場合は、scaffold を使って bridge / pre-race / reconciliation の runtime config をまとめて生成できる。
+
+例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli \
+  --unit-id 20260426_example_meeting \
+  --dataset-path data/processed/horse_dataset_odds_only_is_place.parquet \
+  --duckdb-path data/artifacts/jrdb_2023_2025_supported_full.duckdb \
+  --model-version odds_only_logreg_is_place@20260426_example_meeting \
+  --settled-as-of 2026-04-26T18:00:00+09:00
+```
+
+生成されるもの:
+
+- `configs/recurring_rehearsal/<unit_id>.bridge.toml`
+- `configs/recurring_rehearsal/<unit_id>.pre_race.toml`
+- `configs/recurring_rehearsal/<unit_id>.reconciliation.toml`
+- `data/forward_test/runs/<unit_id>/raw/`
+- `data/forward_test/runs/<unit_id>/contract/`
+- `data/forward_test/runs/<unit_id>/notes/`
+
+注意:
+
+- scaffold は hidden fallback を入れない
+- 既存 config がある場合は default で overwrite せず clear error で止まる
+- 生成後に source metadata や `settled_as_of` を見直してから bridge / pre-race / reconciliation を実行する
+- current odds-only recurring path 向けの scaffold default は `model_name = "logistic_regression"` と `feature_transforms = ["identity"]`
+- operator smoke では、scaffold 実行後の still-manual は主に 2 系統だった
+  - raw snapshot を `raw/input_snapshot_raw.csv` に置くこと
+  - pre-race config の `reference_model` を軽く見直すこと
 
 ## Boundaries
 

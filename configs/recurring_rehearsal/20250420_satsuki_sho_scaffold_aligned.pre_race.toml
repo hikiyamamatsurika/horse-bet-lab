@@ -2,13 +2,13 @@
 # Copy this file per rehearsal unit and replace placeholder values.
 
 [place_forward_test]
-name = "place_forward_test_phase1_<unit_id>"
-input_path = "data/forward_test/runs/<unit_id>/contract/input_snapshot_<unit_id>.csv"
-output_dir = "data/artifacts/place_forward_test/<unit_id>/pre_race"
+name = "place_forward_test_phase1_20250420_satsuki_sho_scaffold_aligned"
+input_path = "data/forward_test/runs/20250420_satsuki_sho_scaffold_aligned/contract/input_snapshot_20250420_satsuki_sho_scaffold_aligned.csv"
+output_dir = "data/artifacts/place_forward_test/20250420_satsuki_sho_scaffold_aligned/pre_race"
 input_schema_version = "place_forward_test_input_v1"
 
 [place_forward_test.reference_model]
-dataset_path = "data/processed/dataset_is_place/dataset.parquet"
+dataset_path = "data/processed/horse_dataset_odds_only_is_place.parquet"
 model_name = "logistic_regression"
 feature_columns = ["win_odds"]
 # Current recurring default is the odds-only path on top of the hard-adopt baseline.
@@ -17,7 +17,7 @@ target_column = "target_value"
 split_column = "split"
 training_splits = ["train", "valid", "test"]
 max_iter = 1000
-model_version = "replace_with_mainline_model_version"
+model_version = "odds_only_logreg_is_place@20250420_satsuki_sho_scaffold_aligned"
 
 [place_forward_test.reference_model.model_params]
 random_state = 42
