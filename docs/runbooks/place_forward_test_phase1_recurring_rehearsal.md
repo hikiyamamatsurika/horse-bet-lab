@@ -96,12 +96,13 @@ data/forward_test/runs/<unit_id>/notes/
 
 ### Post-race checklist
 
-1. result DB が対象開催まで更新済みかを確認する
-2. scaffold が生成した reconciliation config の `duckdb_path` / `settled_as_of` を確認する
-3. reconciliation を実行する
-4. `reconciled_records.csv` を確認する
-5. `reconciliation_summary.json` を確認する
-6. `settled_hit`, `settled_miss`, `settled_no_bet`, `unsettled_*` の件数を確認する
+1. scaffold が生成した reconciliation config の `duckdb_path` / `settled_as_of` を確認する
+2. reconciliation 前に result DB availability check を実行する
+3. `result_availability_check.txt` を見て、`should_settle` か `expected_pending_or_stale_db` かを確認する
+4. reconciliation を実行する
+5. `reconciled_records.csv` を確認する
+6. `reconciliation_summary.json` を確認する
+7. `settled_hit`, `settled_miss`, `settled_no_bet`, `unsettled_*` の件数を確認する
 
 ### Weekly / periodic checklist
 
@@ -126,6 +127,8 @@ data/forward_test/runs/<unit_id>/notes/
   - `pre_race/bet_decision_records.csv`
   - `pre_race/run_manifest.json`
 - post-race 結果確認:
+  - `reconciliation/result_availability_check.txt`
+  - `reconciliation/result_availability_check.json`
   - `reconciliation/reconciled_records.csv`
   - `reconciliation/reconciliation_summary.json`
 
@@ -141,6 +144,7 @@ data/forward_test/runs/<unit_id>/notes/
   - 結果は出たが当時は `no_bet`
 - `unsettled_result_pending`, `unsettled_result_incomplete`
   - まだ結果確認が閉じていない
+  - reconciliation 前に `result_availability_check` で `expected_pending_or_stale_db` や `result_db_partial_results` が出ていれば、operator 手順ミスではなく result DB freshness の問題を先に疑う
 
 ## Template Files
 
@@ -187,6 +191,13 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.scaffold_cli \
 ```bash
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.raw_snapshot_intake_cli \
   --bridge-config configs/recurring_rehearsal/<unit_id>.bridge.toml
+```
+
+- reconciliation 前の result DB availability check 例:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.result_db_availability_cli \
+  --config configs/recurring_rehearsal/<unit_id>.reconciliation.toml
 ```
 
 - current odds-only recurring path 向けの scaffold default は `model_name = "logistic_regression"` と `feature_transforms = ["identity"]`

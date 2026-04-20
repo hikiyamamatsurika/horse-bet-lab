@@ -23,9 +23,12 @@ from horse_bet_lab.forward_test.runner import (
 from horse_bet_lab.forward_test.reconciliation import (
     PlaceForwardReconciliationConfig,
     PlaceForwardReconciliationResult,
+    PlaceForwardResultAvailabilityCheckResult,
     PlaceForwardReconciledRecord,
     build_reconciliation_parser,
+    build_result_db_availability_parser,
     load_reconciliation_config,
+    run_place_forward_result_db_availability_check,
     run_place_forward_reconciliation,
 )
 from horse_bet_lab.forward_test.snapshot_bridge import (
@@ -67,6 +70,7 @@ __all__ = [
     "PlaceForwardReconciledRecord",
     "PlaceForwardReconciliationConfig",
     "PlaceForwardReconciliationResult",
+    "PlaceForwardResultAvailabilityCheckResult",
     "PlaceForwardRawSnapshotIntakeManifest",
     "PlaceForwardRawSnapshotPrecheckResult",
     "PlaceForwardRunResult",
@@ -79,6 +83,7 @@ __all__ = [
     "build_default_raw_snapshot_intake_manifest",
     "build_parser",
     "build_reconciliation_parser",
+    "build_result_db_availability_parser",
     "build_raw_snapshot_intake_parser",
     "build_scaffold_config_from_args",
     "build_scaffold_parser",
@@ -89,6 +94,7 @@ __all__ = [
     "load_raw_snapshot_intake_manifest",
     "load_snapshot_bridge_config",
     "run_place_forward_reconciliation",
+    "run_place_forward_result_db_availability_check",
     "run_raw_snapshot_intake_precheck",
     "run_scaffold",
     "run_snapshot_bridge",

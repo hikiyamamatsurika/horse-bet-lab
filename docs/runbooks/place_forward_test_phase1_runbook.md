@@ -199,8 +199,10 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli
 5. pre-race runner を実行する
 6. `bet_decision_records.csv` と `run_manifest.json` を確認する
 7. レース結果が確定したら reconciliation config を用意する
-8. reconciliation を実行する
-9. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
+8. result DB availability check を実行する
+9. `result_availability_check.txt` / `.json` を見て `should_settle` か `expected_pending_or_stale_db` かを確認する
+10. reconciliation を実行する
+11. `reconciled_records.csv` と `reconciliation_summary.json` を確認する
 
 operator rehearsal で最短確認したい点:
 
@@ -218,6 +220,7 @@ PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.cli --config confi
 post-race reconciliation 例:
 
 ```bash
+PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.result_db_availability_cli --config configs/place_forward_test_reconciliation.sample.toml
 PYTHONPATH=src .venv/bin/python -m horse_bet_lab.forward_test.reconciliation_cli --config configs/place_forward_test_reconciliation.sample.toml
 ```
 
@@ -240,6 +243,22 @@ reconciliation config で最低限埋める項目:
   - reconciliation artifacts の出力先
 - `settled_as_of`
   - operator が「どの時点まで結果確認済みか」を残したいときの任意メタデータ
+
+result DB availability check で最初に見たいもの:
+
+- `result_availability_check.txt`
+- `result_availability_check.json`
+
+最短判断:
+
+- `should_settle`
+  - 対象 race の finish result と payout side が揃って見えているので、そのまま reconciliation を回してよい
+- `expected_pending_or_stale_db`
+  - まだ結果が入っていない想定か、DuckDB が古い可能性がある
+- `result_db_partial_results`
+  - 一部 race だけ見えているので、まだ待つ方が安全
+- `result_db_incomplete_payout_side`
+  - finish result は見えているが payout side が不完全なので、settlement 判断にはまだ早い
 
 ## What Appears Under output_dir
 
