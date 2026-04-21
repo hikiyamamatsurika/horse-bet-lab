@@ -8,6 +8,8 @@ build/
 __pycache__/
 data/raw/jrdb/*
 !data/raw/jrdb/.gitkeep
+data/local/*
+!data/local/.gitkeep
 data/staging/*
 !data/staging/.gitkeep
 data/artifacts/*
