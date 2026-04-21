@@ -8,11 +8,13 @@ from typing import Protocol
 HANDOFF_MODE_NONE = "none"
 HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE = "forward_pre_race_contract_like_csv_v1"
 HANDOFF_MODE_FORWARD_PRE_RACE_OZ = "forward_pre_race_oz_v1"
+HANDOFF_MODE_FORWARD_PRE_RACE_TYB_OZ = "forward_pre_race_tyb_oz_v1"
 SUPPORTED_HANDOFF_MODES = frozenset(
     {
         HANDOFF_MODE_NONE,
         HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE,
         HANDOFF_MODE_FORWARD_PRE_RACE_OZ,
+        HANDOFF_MODE_FORWARD_PRE_RACE_TYB_OZ,
     }
 )
 
@@ -94,7 +96,12 @@ def load_trigger_manifest(path: Path) -> JRDBAutoIngestionTrigger:
 
     pre_race_payload = (
         handoff_payload
-        if mode in {HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE, HANDOFF_MODE_FORWARD_PRE_RACE_OZ}
+        if mode
+        in {
+            HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE,
+            HANDOFF_MODE_FORWARD_PRE_RACE_OZ,
+            HANDOFF_MODE_FORWARD_PRE_RACE_TYB_OZ,
+        }
         else None
     )
     pre_race = (

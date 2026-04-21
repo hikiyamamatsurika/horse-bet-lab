@@ -220,6 +220,14 @@ current frozen boundaryに合わせ、MVP は pre-race handoff mode を明示的
   - sanctioned mainline pre-race adapter は当面 `OZ` のみを読む
   - `popularity` は unresolved のまま扱い、raw-ish input に埋めない
   - `SED` / `SRB` はこの adapter scope に含めない
+- `forward_pre_race_tyb_oz_v1`
+  - extracted official files から `TYB*.txt` と `OZ*.txt` を発見する
+  - `TYB` から `race_key` / `horse_number` / `win_odds` / `place_odds_low` / `odds_index` を取る
+  - `OZ` から `place_basis_odds` を取る
+  - `race_key + horse_number` で join して raw-ish input を作り、Phase 1 pre-race まで起動する
+  - sanctioned mainline live/current pre-race path は当面 `TYB + OZ`
+  - `popularity` は unresolved のまま扱い、raw-ish input に埋めない
+  - `SED` / `SRB` / `JOA` はこの adapter scope に含めない
 
 production intent は email-triggered local run だが、fixture smoke では `forward_pre_race_contract_like_csv_v1` を使う。
 
@@ -230,6 +238,8 @@ production intent は email-triggered local run だが、fixture smoke では `f
 - duplicate suppression 以外の download failure
 - hash mismatch
 - extraction failure
+- pre-race mode が要求する official file の不足
+- `TYB + OZ` join mismatch / duplicate rows
 - raw placement failure
 - scaffold / intake / bridge / runner failure
 
