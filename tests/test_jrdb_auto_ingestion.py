@@ -275,6 +275,128 @@ def test_jrdb_auto_ingestion_fixture_can_handoff_from_oz_archive_to_forward_pre_
     assert rows[0]["place_basis_odds_proxy"] == "1.3"
 
 
+def test_jrdb_auto_ingestion_fixture_can_handoff_from_tyb_oz_archive_to_forward_pre_race(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    archive_path = tmp_path / "fixture_tyb_oz.zip"
+    _write_zip(
+        archive_path,
+        {
+            "nested/TYB250105.txt": (
+                _make_tyb_line(
+                    race_key="06251101",
+                    horse_number=1,
+                    odds_index=0.6,
+                    win_odds=2.1,
+                    place_odds_low=1.2,
+                    odds_observation_time_hhmm="1538",
+                )
+                + b"\r\n"
+                + _make_tyb_line(
+                    race_key="06251101",
+                    horse_number=2,
+                    odds_index=-0.4,
+                    win_odds=8.4,
+                    place_odds_low=2.7,
+                    odds_observation_time_hhmm="1538",
+                )
+                + b"\r\n"
+                + _make_tyb_line(
+                    race_key="06251101",
+                    horse_number=3,
+                    odds_index=1.5,
+                    win_odds=14.9,
+                    place_odds_low=4.0,
+                    odds_observation_time_hhmm="1538",
+                )
+                + b"\r\n"
+            ),
+            "nested/OZ250105.txt": (
+                _make_oz_line(
+                    race_key="06251101",
+                    headcount=3,
+                    win_basis_odds=(2.4, 8.7, 15.2),
+                    place_basis_odds=(1.3, 2.8, 4.1),
+                )
+                + b"\r\n"
+            ),
+        },
+    )
+    dataset_path = tmp_path / "dataset.parquet"
+    duckdb_path = tmp_path / "jrdb.duckdb"
+    _write_dataset_parquet(dataset_path)
+    trigger_manifest_path = tmp_path / "trigger_tyb_oz.json"
+    trigger_manifest_path.write_text(
+        json.dumps(
+            {
+                "trigger_kind": "manual_fixture",
+                "message_id": "fixture-pre-race-tyb-oz",
+                "detected_at": "2026-04-21T11:00:00+09:00",
+                "archives": [
+                    {
+                        "name": "fixture_tyb_oz.zip",
+                        "source_uri": str(archive_path),
+                        "expected_sha256": _sha256_digest(archive_path),
+                        "archive_kind": "zip",
+                    }
+                ],
+                "handoff": {
+                    "mode": "forward_pre_race_tyb_oz_v1",
+                    "ingest_ready_files": False,
+                    "unit_id": "20260426_tyb_oz_meeting",
+                    "dataset_path": str(dataset_path),
+                    "duckdb_path": str(duckdb_path),
+                    "model_version": "odds_only_logreg_is_place@fixture",
+                    "settled_as_of": "2026-04-26T18:00:00+09:00",
+                    "input_source_name": "jrdb_tyb_oz_official",
+                    "input_source_url": "https://example.invalid/jrdb/tyb-oz",
+                    "input_source_timestamp": "2026-04-26T15:38:00+09:00",
+                    "odds_observation_timestamp": "2026-04-26T15:38:00+09:00",
+                    "popularity_input_source": "jrdb_tyb_oz_official",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    trigger = load_trigger_manifest(trigger_manifest_path)
+    result = run_jrdb_auto_ingestion_job(
+        trigger,
+        workspace_root=tmp_path / "workspace",
+        raw_dir=tmp_path / "raw",
+    )
+
+    assert result.status == "completed"
+    run_manifest_path = (
+        tmp_path
+        / "data"
+        / "artifacts"
+        / "place_forward_test"
+        / "20260426_tyb_oz_meeting"
+        / "pre_race"
+        / "run_manifest.json"
+    )
+    assert run_manifest_path.exists()
+    run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
+    assert run_manifest["record_counts"]["decision_records"] == 3
+    raw_snapshot_path = (
+        tmp_path
+        / "data"
+        / "forward_test"
+        / "runs"
+        / "20260426_tyb_oz_meeting"
+        / "raw"
+        / "input_snapshot_raw.csv"
+    )
+    rows = list(csv.DictReader(raw_snapshot_path.open(encoding="utf-8")))
+    assert len(rows) == 3
+    assert rows[0]["win_odds"] == "2.1"
+    assert rows[0]["place_basis_odds_proxy"] == "1.3"
+    assert rows[0]["place_odds_min"] == "1.2"
+
+
 def _write_zip(path: Path, files: dict[str, bytes]) -> None:
     with zipfile.ZipFile(path, "w") as archive:
         for name, content in files.items():
@@ -383,3 +505,47 @@ def _make_oz_line(
     win_text = "".join(f"{value:>5.1f}" for value in win_basis_odds)
     place_text = "".join(f"{value:>5.1f}" for value in place_basis_odds)
     return f"{race_key[:8].ljust(8)}{headcount:02d}{win_text}{' ' * 12}{place_text}".encode("ascii")
+
+
+def _make_tyb_line(
+    *,
+    race_key: str,
+    horse_number: int,
+    odds_index: float,
+    win_odds: float,
+    place_odds_low: float,
+    odds_observation_time_hhmm: str,
+) -> bytes:
+    chunks = [
+        race_key[:8].ljust(8),
+        f"{horse_number:02d}",
+        f"{0.0:>5.1f}",
+        f"{0.0:>5.1f}",
+        f"{0.0:>5.1f}",
+        f"{odds_index:>5.1f}",
+        f"{0.0:>5.1f}",
+        f"{0.0:>5.1f}",
+        f"{0.0:>5.1f}",
+        "0",
+        "0",
+        "0",
+        "00000",
+        "ﾃｽﾄｼﾞｮｷ".ljust(12),
+        "540",
+        "0",
+        "10",
+        "2",
+        f"{win_odds:>6.1f}",
+        f"{place_odds_low:>6.1f}",
+        odds_observation_time_hhmm[:4].rjust(4),
+        "484",
+        "- 6",
+        " ",
+        " ",
+        " ",
+        "2",
+        "7",
+        "1538",
+        " " * 23,
+    ]
+    return "".join(chunks).encode("cp932")

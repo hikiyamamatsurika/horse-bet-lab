@@ -45,24 +45,26 @@ repo には入れない。
     }
   ],
   "handoff": {
-    "mode": "forward_pre_race_oz_v1",
+    "mode": "forward_pre_race_tyb_oz_v1",
     "ingest_ready_files": true,
     "unit_id": "20260426_example_meeting",
     "dataset_path": "/absolute/path/to/horse_dataset_odds_only_is_place.parquet",
     "duckdb_path": "/absolute/path/to/jrdb.duckdb",
     "model_version": "odds_only_logreg_is_place@20260426_example_meeting",
     "settled_as_of": "2026-04-26T18:00:00+09:00",
-    "input_source_name": "jrdb_oz_official",
-    "input_source_url": "https://example.invalid/jrdb/oz",
+    "input_source_name": "jrdb_tyb_oz_official",
+    "input_source_url": "https://example.invalid/jrdb/tyb-oz",
     "input_source_timestamp": "2026-04-26T15:38:00+09:00",
     "odds_observation_timestamp": "2026-04-26T15:38:00+09:00",
-    "popularity_input_source": "jrdb_oz_official"
+    "popularity_input_source": "jrdb_tyb_oz_official"
   }
 }
 ```
 
 `mode = "none"` にすると ready 化と result-side ingest だけ行う。
 `mode = "forward_pre_race_contract_like_csv_v1"` は従来どおり sanctioned local contract-like CSV を source にする開発/fixture path。
+`mode = "forward_pre_race_oz_v1"` は `OZ` basis-odds だけを使う既存 path。
+`mode = "forward_pre_race_tyb_oz_v1"` は `TYB` の current horse-level market と `OZ` の `place_basis_odds` を join する sanctioned mainline live path。
 
 ## CLI
 
@@ -134,7 +136,8 @@ optional Phase 1 artifacts:
 
 - production intent は email-triggered local run
 - ただし mailbox spec が未固定なので、MVP では manual / fixture trigger も正規の開発入口として持つ
-- sanctioned mainline pre-race adapter は当面 `OZ*.txt` のみを読む
+- sanctioned mainline live/current pre-race adapter は当面 `TYB*.txt + OZ*.txt`
+- `OZ*.txt` 単独 adapter は basis-odds only path として残す
 - `popularity` は unresolved auxiliary のまま使わない
-- `SED` / `SRB` は current mainline pre-race adapter scope 外
-- fixture smoke では `forward_pre_race_oz_v1` または `forward_pre_race_contract_like_csv_v1` を使って existing Phase 1 handoff を検証できる
+- `SED` / `SRB` / `JOA` は current mainline pre-race adapter scope 外
+- fixture smoke では `forward_pre_race_tyb_oz_v1` / `forward_pre_race_oz_v1` / `forward_pre_race_contract_like_csv_v1` を使って existing Phase 1 handoff を検証できる
