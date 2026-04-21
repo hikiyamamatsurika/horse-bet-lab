@@ -184,6 +184,97 @@ def test_jrdb_auto_ingestion_fixture_can_handoff_to_forward_pre_race(
     assert contract_csv_path.exists()
 
 
+def test_jrdb_auto_ingestion_fixture_can_handoff_from_oz_archive_to_forward_pre_race(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    archive_path = tmp_path / "fixture_oz.zip"
+    _write_zip(
+        archive_path,
+        {
+            "nested/OZ250105.txt": (
+                _make_oz_line(
+                    race_key="06251101",
+                    headcount=3,
+                    win_basis_odds=(2.4, 8.7, 15.2),
+                    place_basis_odds=(1.3, 2.8, 4.1),
+                )
+                + b"\r\n"
+            ),
+        },
+    )
+    dataset_path = tmp_path / "dataset.parquet"
+    duckdb_path = tmp_path / "jrdb.duckdb"
+    _write_dataset_parquet(dataset_path)
+    trigger_manifest_path = tmp_path / "trigger_oz.json"
+    trigger_manifest_path.write_text(
+        json.dumps(
+            {
+                "trigger_kind": "manual_fixture",
+                "message_id": "fixture-pre-race-oz",
+                "detected_at": "2026-04-21T11:00:00+09:00",
+                "archives": [
+                    {
+                        "name": "fixture_oz.zip",
+                        "source_uri": str(archive_path),
+                        "expected_sha256": _sha256_digest(archive_path),
+                        "archive_kind": "zip",
+                    }
+                ],
+                "handoff": {
+                    "mode": "forward_pre_race_oz_v1",
+                    "ingest_ready_files": False,
+                    "unit_id": "20260426_oz_meeting",
+                    "dataset_path": str(dataset_path),
+                    "duckdb_path": str(duckdb_path),
+                    "model_version": "odds_only_logreg_is_place@fixture",
+                    "settled_as_of": "2026-04-26T18:00:00+09:00",
+                    "input_source_name": "jrdb_oz_official",
+                    "input_source_url": "https://example.invalid/jrdb/oz",
+                    "input_source_timestamp": "2026-04-26T15:38:00+09:00",
+                    "odds_observation_timestamp": "2026-04-26T15:38:00+09:00",
+                    "popularity_input_source": "jrdb_oz_official",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    trigger = load_trigger_manifest(trigger_manifest_path)
+    result = run_jrdb_auto_ingestion_job(
+        trigger,
+        workspace_root=tmp_path / "workspace",
+        raw_dir=tmp_path / "raw",
+    )
+
+    assert result.status == "completed"
+    run_manifest_path = (
+        tmp_path
+        / "data"
+        / "artifacts"
+        / "place_forward_test"
+        / "20260426_oz_meeting"
+        / "pre_race"
+        / "run_manifest.json"
+    )
+    assert run_manifest_path.exists()
+    run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
+    assert run_manifest["record_counts"]["decision_records"] == 3
+    raw_snapshot_path = (
+        tmp_path
+        / "data"
+        / "forward_test"
+        / "runs"
+        / "20260426_oz_meeting"
+        / "raw"
+        / "input_snapshot_raw.csv"
+    )
+    rows = list(csv.DictReader(raw_snapshot_path.open(encoding="utf-8")))
+    assert len(rows) == 3
+    assert rows[0]["place_basis_odds_proxy"] == "1.3"
+
+
 def _write_zip(path: Path, files: dict[str, bytes]) -> None:
     with zipfile.ZipFile(path, "w") as archive:
         for name, content in files.items():
@@ -280,3 +371,15 @@ def _sha256_digest(path: Path) -> str:
     digest = hashlib.sha256()
     digest.update(path.read_bytes())
     return digest.hexdigest()
+
+
+def _make_oz_line(
+    *,
+    race_key: str,
+    headcount: int,
+    win_basis_odds: tuple[float, ...],
+    place_basis_odds: tuple[float, ...],
+) -> bytes:
+    win_text = "".join(f"{value:>5.1f}" for value in win_basis_odds)
+    place_text = "".join(f"{value:>5.1f}" for value in place_basis_odds)
+    return f"{race_key[:8].ljust(8)}{headcount:02d}{win_text}{' ' * 12}{place_text}".encode("ascii")

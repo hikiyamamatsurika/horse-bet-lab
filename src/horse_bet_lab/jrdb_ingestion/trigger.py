@@ -7,10 +7,12 @@ from typing import Protocol
 
 HANDOFF_MODE_NONE = "none"
 HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE = "forward_pre_race_contract_like_csv_v1"
+HANDOFF_MODE_FORWARD_PRE_RACE_OZ = "forward_pre_race_oz_v1"
 SUPPORTED_HANDOFF_MODES = frozenset(
     {
         HANDOFF_MODE_NONE,
         HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE,
+        HANDOFF_MODE_FORWARD_PRE_RACE_OZ,
     }
 )
 
@@ -26,7 +28,7 @@ class JRDBArchiveTrigger:
 @dataclass(frozen=True)
 class JRDBForwardPreRaceHandoffConfig:
     unit_id: str
-    source_path: Path
+    source_path: Path | None
     dataset_path: Path
     duckdb_path: Path
     model_version: str
@@ -92,13 +94,17 @@ def load_trigger_manifest(path: Path) -> JRDBAutoIngestionTrigger:
 
     pre_race_payload = (
         handoff_payload
-        if mode == HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE
+        if mode in {HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE, HANDOFF_MODE_FORWARD_PRE_RACE_OZ}
         else None
     )
     pre_race = (
         JRDBForwardPreRaceHandoffConfig(
             unit_id=str(pre_race_payload["unit_id"]),
-            source_path=Path(str(pre_race_payload["source_path"])),
+            source_path=(
+                Path(str(pre_race_payload["source_path"]))
+                if pre_race_payload.get("source_path") is not None
+                else None
+            ),
             dataset_path=Path(str(pre_race_payload["dataset_path"])),
             duckdb_path=Path(str(pre_race_payload["duckdb_path"])),
             model_version=str(pre_race_payload["model_version"]),
