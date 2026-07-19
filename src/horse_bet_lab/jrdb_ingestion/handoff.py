@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from horse_bet_lab.forward_test.raw_snapshot_intake import run_raw_snapshot_intake_precheck
@@ -21,6 +22,7 @@ from horse_bet_lab.jrdb_ingestion.oz_pre_race_adapter import (
     run_oz_pre_race_adapter,
 )
 from horse_bet_lab.jrdb_ingestion.trigger import (
+    HANDOFF_MODE_FORWARD_COLLECTION_TYB_OZ,
     HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE,
     HANDOFF_MODE_FORWARD_PRE_RACE_OZ,
     HANDOFF_MODE_FORWARD_PRE_RACE_TYB_OZ,
@@ -32,6 +34,12 @@ from horse_bet_lab.jrdb_ingestion.tyb_oz_pre_race_adapter import (
     discover_tyb_source_paths,
     run_tyb_oz_pre_race_adapter,
 )
+from horse_bet_lab.research.prospective_collection_ops import (
+    ProspectiveCollectionOpsConfig,
+    run_prospective_collection_ops,
+)
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass(frozen=True)
@@ -40,6 +48,8 @@ class JRDBHandoffResult:
     ingest_summary: IngestionSummary | None
     pre_race_output_dir: Path | None
     unit_id: str | None
+    contract_snapshot_path: Path | None = None
+    collection_monitor_output_dir: Path | None = None
 
 
 def run_handoff(
@@ -60,6 +70,47 @@ def run_handoff(
             ingest_summary=ingest_summary,
             pre_race_output_dir=None,
             unit_id=None,
+        )
+    if trigger.handoff.mode == HANDOFF_MODE_FORWARD_COLLECTION_TYB_OZ:
+        collection = trigger.handoff.collection
+        if collection is None:
+            raise ValueError("forward collection handoff requires collection config")
+        observation_date = date.fromisoformat(collection.odds_observation_timestamp[:10])
+        result = run_prospective_collection_ops(
+            ProspectiveCollectionOpsConfig(
+                unit_id=collection.unit_id,
+                source_dir=raw_target_dir,
+                output_root=Path("data/forward_test/prospective_collection"),
+                input_source_name=collection.input_source_name,
+                input_source_url=collection.input_source_url,
+                input_source_timestamp=collection.input_source_timestamp,
+                odds_observation_timestamp=collection.odds_observation_timestamp,
+                carrier_identity=collection.carrier_identity,
+                as_of_date=observation_date,
+                repository_root=REPOSITORY_ROOT,
+                contract_path=(
+                    REPOSITORY_ROOT / "configs/phase658_2026_forward_preregistered_validation.json"
+                ),
+                checksum_path=(
+                    REPOSITORY_ROOT
+                    / "configs/phase658_2026_forward_preregistered_validation.sha256"
+                ),
+                superseded_contract_path=(
+                    REPOSITORY_ROOT / "configs/phase654_2026_forward_preregistered_validation.json"
+                ),
+                superseded_checksum_path=(
+                    REPOSITORY_ROOT
+                    / "configs/phase654_2026_forward_preregistered_validation.sha256"
+                ),
+            )
+        )
+        return JRDBHandoffResult(
+            raw_target_dir=raw_target_dir,
+            ingest_summary=ingest_summary,
+            pre_race_output_dir=None,
+            unit_id=result.unit_id,
+            contract_snapshot_path=result.contract_snapshot_path,
+            collection_monitor_output_dir=result.monitor_output_dir,
         )
     if trigger.handoff.mode not in {
         HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE,
@@ -98,11 +149,15 @@ def _run_forward_pre_race_contract_like_handoff(
     scaffold_result = run_scaffold(
         PlaceForwardScaffoldConfig(
             unit_id=config.unit_id,
-            raw_input_path=Path(f"data/forward_test/runs/{config.unit_id}/raw/input_snapshot_raw.csv"),
+            raw_input_path=Path(
+                f"data/forward_test/runs/{config.unit_id}/raw/input_snapshot_raw.csv"
+            ),
             contract_output_path=Path(
                 f"data/forward_test/runs/{config.unit_id}/contract/input_snapshot_{config.unit_id}.csv"
             ),
-            pre_race_output_dir=Path(f"data/artifacts/place_forward_test/{config.unit_id}/pre_race"),
+            pre_race_output_dir=Path(
+                f"data/artifacts/place_forward_test/{config.unit_id}/pre_race"
+            ),
             reconciliation_output_dir=Path(
                 f"data/artifacts/place_forward_test/{config.unit_id}/reconciliation"
             ),
@@ -153,11 +208,15 @@ def _run_forward_pre_race_oz_handoff(
     scaffold_result = run_scaffold(
         PlaceForwardScaffoldConfig(
             unit_id=config.unit_id,
-            raw_input_path=Path(f"data/forward_test/runs/{config.unit_id}/raw/input_snapshot_raw.csv"),
+            raw_input_path=Path(
+                f"data/forward_test/runs/{config.unit_id}/raw/input_snapshot_raw.csv"
+            ),
             contract_output_path=Path(
                 f"data/forward_test/runs/{config.unit_id}/contract/input_snapshot_{config.unit_id}.csv"
             ),
-            pre_race_output_dir=Path(f"data/artifacts/place_forward_test/{config.unit_id}/pre_race"),
+            pre_race_output_dir=Path(
+                f"data/artifacts/place_forward_test/{config.unit_id}/pre_race"
+            ),
             reconciliation_output_dir=Path(
                 f"data/artifacts/place_forward_test/{config.unit_id}/reconciliation"
             ),
@@ -207,11 +266,15 @@ def _run_forward_pre_race_tyb_oz_handoff(
     scaffold_result = run_scaffold(
         PlaceForwardScaffoldConfig(
             unit_id=config.unit_id,
-            raw_input_path=Path(f"data/forward_test/runs/{config.unit_id}/raw/input_snapshot_raw.csv"),
+            raw_input_path=Path(
+                f"data/forward_test/runs/{config.unit_id}/raw/input_snapshot_raw.csv"
+            ),
             contract_output_path=Path(
                 f"data/forward_test/runs/{config.unit_id}/contract/input_snapshot_{config.unit_id}.csv"
             ),
-            pre_race_output_dir=Path(f"data/artifacts/place_forward_test/{config.unit_id}/pre_race"),
+            pre_race_output_dir=Path(
+                f"data/artifacts/place_forward_test/{config.unit_id}/pre_race"
+            ),
             reconciliation_output_dir=Path(
                 f"data/artifacts/place_forward_test/{config.unit_id}/reconciliation"
             ),

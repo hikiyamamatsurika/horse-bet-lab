@@ -65,6 +65,7 @@ repo には入れない。
 `mode = "forward_pre_race_contract_like_csv_v1"` は従来どおり sanctioned local contract-like CSV を source にする開発/fixture path。
 `mode = "forward_pre_race_oz_v1"` は `OZ` basis-odds だけを使う既存 path。
 `mode = "forward_pre_race_tyb_oz_v1"` は `TYB` の current horse-level market と `OZ` の `place_basis_odds` を join する sanctioned mainline live path。
+`mode = "forward_collection_tyb_oz_v1"` は prospective window 専用。TYB/OZ を contract snapshot へ変換して Phase660 monitor を実行し、prediction / decision / reconciliation は起動しない。
 
 ## CLI
 
