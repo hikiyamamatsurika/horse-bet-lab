@@ -181,7 +181,7 @@ def run_signal_robustness(
             "2024_validation",
             train_2023,
             validation_2024,
-            _build_market_context(
+            build_market_context(
                 train_2023,
                 validation_2024,
                 c_value=market_c,
@@ -193,7 +193,7 @@ def run_signal_robustness(
             "2025_reused_confirmation",
             train_2023_2024,
             confirmation_2025,
-            _build_market_context(
+            build_market_context(
                 train_2023_2024,
                 confirmation_2025,
                 c_value=market_c,
@@ -229,7 +229,7 @@ def run_signal_robustness(
             )
         )
         full_subset = _feature_subset("full_crossfit", excluded=())
-        full_crossfit = _fit_history_variant(
+        full_crossfit = fit_history_variant(
             train,
             evaluation,
             market_context,
@@ -237,7 +237,7 @@ def run_signal_robustness(
             offset_c=offset_c,
             use_cross_fitted_offset=True,
         )
-        full_in_sample = _fit_history_variant(
+        full_in_sample = fit_history_variant(
             train,
             evaluation,
             market_context,
@@ -315,7 +315,7 @@ def run_signal_robustness(
             if subset.name == "full_crossfit":
                 predictions = full_crossfit
             else:
-                predictions = _fit_history_variant(
+                predictions = fit_history_variant(
                     train,
                     evaluation,
                     market_context,
@@ -498,7 +498,7 @@ def write_robustness_result(result: RobustnessResult, output_dir: Path) -> None:
     (output_dir / "phase652_findings.md").write_text(_findings_markdown(result))
 
 
-def _build_market_context(
+def build_market_context(
     train: ComparisonDataset,
     evaluation: ComparisonDataset,
     *,
@@ -530,7 +530,7 @@ def _build_market_context(
     )
 
 
-def _fit_history_variant(
+def fit_history_variant(
     train: ComparisonDataset,
     evaluation: ComparisonDataset,
     market_context: MarketContext,
