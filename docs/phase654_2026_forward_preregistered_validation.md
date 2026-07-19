@@ -1,5 +1,8 @@
 # Phase654 2026 Forward Preregistered Validation
 
+> Superseded for prospective execution by the additive Phase658 no-popularity amendment. This
+> Phase654 document and its checksummed JSON remain unchanged evidence in the registration lineage.
+
 ## Purpose
 
 Phase652 found a small incremental probability signal from strictly-prior horse history.
