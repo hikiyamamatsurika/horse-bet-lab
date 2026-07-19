@@ -531,7 +531,11 @@ def _history_profile_row(
         "zero_prior_start_rate": float(np.mean(prior_starts == 0)),
         "missing_last1_rate": float(np.mean(~np.isfinite(last1))),
         "mean_days_since_last_start": (float(finite_days.mean()) if len(finite_days) else ""),
-        "mean_market_popularity": float(dataset.market_features[mask, 2].mean()),
+        "mean_market_popularity": (
+            float(dataset.market_features[mask, 2].mean())
+            if dataset.market_features.shape[1] >= 3
+            else ""
+        ),
     }
 
 

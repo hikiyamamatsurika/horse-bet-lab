@@ -465,6 +465,7 @@ def run_signal_robustness(
             "2025": "reused confirmation only; not a fresh holdout",
         },
         "feature_groups": FEATURE_GROUPS,
+        "market_popularity_subgroups_included": dataset.market_features.shape[1] >= 3,
         "feature_ablation_used_for_selection": False,
         "roi_or_betting_used": False,
         "operational_recommendation": RESEARCH_ONLY,
@@ -627,9 +628,8 @@ def _subgroup_masks(
 ) -> tuple[tuple[str, str, NDArray[np.bool_]], ...]:
     prior_index = HISTORY_NUMERIC_FEATURE_COLUMNS.index("prior_start_count")
     prior_starts = dataset.history_numeric_features[:, prior_index]
-    popularity = dataset.market_features[:, 2]
     months = np.asarray([value.month for value in dataset.race_dates], dtype=np.int64)
-    return (
+    masks: list[tuple[str, str, NDArray[np.bool_]]] = [
         ("prior_start_count", "0", prior_starts == 0),
         ("prior_start_count", "1-2", (prior_starts >= 1) & (prior_starts <= 2)),
         ("prior_start_count", "3-4", (prior_starts >= 3) & (prior_starts <= 4)),
@@ -641,12 +641,17 @@ def _subgroup_masks(
             (dataset.active_field_sizes >= 8) & (dataset.active_field_sizes <= 12),
         ),
         ("active_field_size", "13+", dataset.active_field_sizes >= 13),
-        ("market_popularity", "1-3", popularity <= 3),
-        ("market_popularity", "4-8", (popularity >= 4) & (popularity <= 8)),
-        ("market_popularity", "9+", popularity >= 9),
         ("half_year", "H1", months <= 6),
         ("half_year", "H2", months >= 7),
-    )
+    ]
+    if dataset.market_features.shape[1] >= 3:
+        popularity = dataset.market_features[:, 2]
+        masks[9:9] = [
+            ("market_popularity", "1-3", popularity <= 3),
+            ("market_popularity", "4-8", (popularity >= 4) & (popularity <= 8)),
+            ("market_popularity", "9+", popularity >= 9),
+        ]
+    return tuple(masks)
 
 
 def _robustness_verdict(

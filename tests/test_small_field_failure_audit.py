@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -101,6 +102,23 @@ def test_writer_emits_only_diagnostic_outputs(tmp_path: Path) -> None:
         for path in output_dir.iterdir()
         for token in ("roi", "bet", "candidate", "exclusion")
     )
+
+
+def test_small_field_profile_allows_two_column_market() -> None:
+    dataset = _synthetic_mixed_field_dataset(races_per_year=6)
+    dataset = replace(dataset, market_features=dataset.market_features[:, :2])
+
+    result = run_small_field_failure_audit(
+        dataset,
+        crossfit_folds=2,
+        bootstrap_repetitions=10,
+        minimum_bootstrap_races=2,
+    )
+
+    assert result.history_profile_rows
+    populated_rows = [row for row in result.history_profile_rows if int(row["row_count"]) > 0]
+    assert populated_rows
+    assert all(row["mean_market_popularity"] == "" for row in populated_rows)
 
 
 def _synthetic_mixed_field_dataset(
