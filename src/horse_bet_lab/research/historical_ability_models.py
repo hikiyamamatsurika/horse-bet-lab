@@ -888,6 +888,33 @@ def _fit_offset_logistic(
     )
 
 
+def fit_logistic_probability_model(
+    values: FloatArray,
+    targets: IntArray,
+    c_value: float,
+) -> LogisticRegression:
+    """Fit the frozen Phase651 logistic family for research extensions."""
+    return _fit_logistic(values, targets, c_value)
+
+
+def predict_positive_probability(
+    model: LogisticRegression,
+    values: FloatArray,
+) -> FloatArray:
+    """Return positive-class probabilities from a Phase651 logistic model."""
+    return _positive_probability(model, values)
+
+
+def fit_offset_probability_model(
+    values: FloatArray,
+    targets: IntArray,
+    offset_probabilities: FloatArray,
+    c_value: float,
+) -> OffsetLogisticModel:
+    """Fit the fixed-market-logit residual family used by Phase651."""
+    return _fit_offset_logistic(values, targets, offset_probabilities, c_value)
+
+
 def _hyperparameter_row(
     model_name: str,
     c_value: float,
