@@ -11,17 +11,17 @@ from horse_bet_lab.research.preregistered_validation_contract import (
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate the locked Phase654 2026 H1 evaluation preregistration.",
+        description="Validate the locked Phase654 2026 forward evaluation preregistration.",
     )
     parser.add_argument(
         "--contract",
         type=Path,
-        default=Path("configs/phase654_2026_h1_preregistered_validation.json"),
+        default=Path("configs/phase654_2026_forward_preregistered_validation.json"),
     )
     parser.add_argument(
         "--checksum",
         type=Path,
-        default=Path("configs/phase654_2026_h1_preregistered_validation.sha256"),
+        default=Path("configs/phase654_2026_forward_preregistered_validation.sha256"),
     )
     return parser
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-VALID_VERDICT = "PHASE654_2026_H1_PREREGISTRATION_VALID"
+VALID_VERDICT = "PHASE654_2026_FORWARD_PREREGISTRATION_VALID"
 
 EXPECTED_TOP_LEVEL_KEYS = {
     "contract_version",
@@ -125,6 +125,7 @@ class RegisteredValidationContract:
                 self.payload["periods"]["evaluation_start"],
                 self.payload["periods"]["evaluation_end"],
             ],
+            "evaluation_unlock_date": self.payload["periods"]["evaluation_unlock_date"],
             "fixed_model_ids": sorted(self.payload["fixed_models"]),
             "primary_comparison_ids": sorted(
                 row["id"] for row in comparisons if str(row["role"]).startswith("primary_")
@@ -175,9 +176,10 @@ def validate_contract(payload: Mapping[str, Any]) -> None:
         == {
             "training_start": "2023-01-01",
             "training_end": "2025-12-31",
-            "evaluation_start": "2026-01-01",
-            "evaluation_end": "2026-06-30",
-            "evaluation_label": "2026_H1_fresh_confirmation",
+            "evaluation_start": "2026-07-20",
+            "evaluation_end": "2026-12-31",
+            "evaluation_unlock_date": "2027-01-01",
+            "evaluation_label": "2026_forward_fresh_confirmation",
         },
         "training and evaluation periods differ from the preregistered windows",
     )
@@ -291,10 +293,10 @@ def validate_contract(payload: Mapping[str, Any]) -> None:
     _expect(
         verdicts
         == {
-            "source_blocked": "FRESH_2026_H1_SOURCE_BLOCKED",
-            "insufficient_sample": "FRESH_2026_H1_INSUFFICIENT_SAMPLE",
-            "slot2_recovery_confirmed": "FRESH_2026_H1_SLOT2_RECOVERY_CONFIRMED",
-            "slot2_recovery_not_confirmed": ("FRESH_2026_H1_SLOT2_RECOVERY_NOT_CONFIRMED"),
+            "source_blocked": "FRESH_2026_FORWARD_SOURCE_BLOCKED",
+            "insufficient_sample": "FRESH_2026_FORWARD_INSUFFICIENT_SAMPLE",
+            "slot2_recovery_confirmed": "FRESH_2026_FORWARD_SLOT2_RECOVERY_CONFIRMED",
+            "slot2_recovery_not_confirmed": ("FRESH_2026_FORWARD_SLOT2_RECOVERY_NOT_CONFIRMED"),
         },
         "verdict set changed",
     )
@@ -304,18 +306,27 @@ def validate_contract(payload: Mapping[str, Any]) -> None:
     _expect(boundary.get("roi_or_betting_used") is False, "ROI or betting must remain disabled")
     _expect(
         boundary.get("next_phase_after_merge")
-        == "read_only_2026_source_availability_and_schema_audit",
-        "next phase must remain a read-only source audit",
+        == "prospective_collection_readiness_and_schema_audit",
+        "next phase must remain a prospective collection readiness audit",
     )
     _expect(
         boundary.get("forbidden_before_contract_merge")
         == [
-            "inspect_2026_source_rows_or_coverage",
-            "compute_2026_model_metrics",
-            "change_features_models_hyperparameters_or_success_thresholds_after_seeing_2026",
+            "inspect_forward_window_source_rows_or_coverage",
+            "compute_forward_window_model_metrics",
+            "change_features_models_hyperparameters_or_success_thresholds_after_forward_collection_starts",
             "optimize_roi_payout_bet_selection_or_stakes",
         ],
         "pre-merge prohibitions changed",
+    )
+    _expect(
+        boundary.get("allowed_after_merge_before_evaluation_unlock")
+        == [
+            "read_only_schema_audit",
+            "date_and_identity_coverage_monitoring_without_model_predictions_or_metrics",
+            "missingness_and_join_diagnostics_without_outcome_conditioning",
+        ],
+        "pre-unlock monitoring boundary changed",
     )
 
 

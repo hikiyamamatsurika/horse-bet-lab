@@ -1,19 +1,20 @@
 {
   "contract_version": 1,
   "phase": "Phase654",
-  "research_question": "Does strictly-prior horse history improve place-probability estimation beyond the decision-time market on a not-yet-evaluated 2026 H1 period, and does slot-2-specific training repair the previously unstable small-field pocket?",
+  "research_question": "Does strictly-prior horse history improve place-probability estimation beyond the decision-time market on a prospectively collected 2026 forward period, and does slot-2-specific training repair the previously unstable small-field pocket?",
   "freshness": {
-    "claim": "No aggregate Phase650H, Phase652, or Phase653 model evaluation on the 2026 H1 window was inspected before this contract was registered.",
-    "does_not_claim": "This contract does not claim that humans have no knowledge of any individual 2026 race result.",
+    "claim": "The evaluation window begins after registration and no aggregate Phase650H, Phase652, or Phase653 model evaluation on that window may be inspected before the evaluation unlock date.",
+    "does_not_claim": "This contract makes no freshness claim about 2026 races before the prospective evaluation window.",
     "source_audit_allowed_only_after_contract_merge": true,
     "model_or_threshold_change_after_source_audit": "forbidden"
   },
   "periods": {
     "training_start": "2023-01-01",
     "training_end": "2025-12-31",
-    "evaluation_start": "2026-01-01",
-    "evaluation_end": "2026-06-30",
-    "evaluation_label": "2026_H1_fresh_confirmation"
+    "evaluation_start": "2026-07-20",
+    "evaluation_end": "2026-12-31",
+    "evaluation_unlock_date": "2027-01-01",
+    "evaluation_label": "2026_forward_fresh_confirmation"
   },
   "data_contract": {
     "history_surface": "Phase650H strictly-prior historical ability surface",
@@ -141,20 +142,25 @@
     ]
   },
   "verdicts": {
-    "source_blocked": "FRESH_2026_H1_SOURCE_BLOCKED",
-    "insufficient_sample": "FRESH_2026_H1_INSUFFICIENT_SAMPLE",
-    "slot2_recovery_confirmed": "FRESH_2026_H1_SLOT2_RECOVERY_CONFIRMED",
-    "slot2_recovery_not_confirmed": "FRESH_2026_H1_SLOT2_RECOVERY_NOT_CONFIRMED"
+    "source_blocked": "FRESH_2026_FORWARD_SOURCE_BLOCKED",
+    "insufficient_sample": "FRESH_2026_FORWARD_INSUFFICIENT_SAMPLE",
+    "slot2_recovery_confirmed": "FRESH_2026_FORWARD_SLOT2_RECOVERY_CONFIRMED",
+    "slot2_recovery_not_confirmed": "FRESH_2026_FORWARD_SLOT2_RECOVERY_NOT_CONFIRMED"
   },
   "phase_boundary": {
     "current_phase_scope": "registration_only",
     "forbidden_before_contract_merge": [
-      "inspect_2026_source_rows_or_coverage",
-      "compute_2026_model_metrics",
-      "change_features_models_hyperparameters_or_success_thresholds_after_seeing_2026",
+      "inspect_forward_window_source_rows_or_coverage",
+      "compute_forward_window_model_metrics",
+      "change_features_models_hyperparameters_or_success_thresholds_after_forward_collection_starts",
       "optimize_roi_payout_bet_selection_or_stakes"
     ],
-    "next_phase_after_merge": "read_only_2026_source_availability_and_schema_audit",
+    "allowed_after_merge_before_evaluation_unlock": [
+      "read_only_schema_audit",
+      "date_and_identity_coverage_monitoring_without_model_predictions_or_metrics",
+      "missingness_and_join_diagnostics_without_outcome_conditioning"
+    ],
+    "next_phase_after_merge": "prospective_collection_readiness_and_schema_audit",
     "roi_or_betting_used": false
   }
 }

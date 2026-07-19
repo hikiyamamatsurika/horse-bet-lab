@@ -15,8 +15,8 @@ from horse_bet_lab.research.preregistered_validation_contract import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_PATH = ROOT / "configs/phase654_2026_h1_preregistered_validation.json"
-CHECKSUM_PATH = ROOT / "configs/phase654_2026_h1_preregistered_validation.sha256"
+CONTRACT_PATH = ROOT / "configs/phase654_2026_forward_preregistered_validation.json"
+CHECKSUM_PATH = ROOT / "configs/phase654_2026_forward_preregistered_validation.sha256"
 
 
 def test_repository_preregistration_is_locked_and_valid() -> None:
@@ -25,7 +25,8 @@ def test_repository_preregistration_is_locked_and_valid() -> None:
     assert registration.summary["verdict"] == VALID_VERDICT
     assert registration.summary["fixed_model_ids"] == sorted(EXPECTED_MODEL_IDS)
     assert registration.summary["primary_comparison_ids"] == sorted(EXPECTED_PRIMARY_COMPARISONS)
-    assert registration.summary["evaluation_window"] == ["2026-01-01", "2026-06-30"]
+    assert registration.summary["evaluation_window"] == ["2026-07-20", "2026-12-31"]
+    assert registration.summary["evaluation_unlock_date"] == "2027-01-01"
     assert registration.summary["source_audit_allowed_only_after_contract_merge"] is True
     assert registration.summary["roi_or_betting_used"] is False
 
@@ -46,7 +47,7 @@ def test_checksum_detects_contract_mutation(tmp_path: Path) -> None:
 
 def test_validator_rejects_changed_evaluation_window() -> None:
     payload = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
-    payload["periods"]["evaluation_end"] = "2026-12-31"
+    payload["periods"]["evaluation_end"] = "2027-06-30"
 
     with pytest.raises(ValueError, match="preregistered windows"):
         validate_contract(payload)

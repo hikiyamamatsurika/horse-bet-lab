@@ -1,4 +1,4 @@
-# Phase654 2026 H1 Preregistered Validation
+# Phase654 2026 Forward Preregistered Validation
 
 ## Purpose
 
@@ -7,22 +7,25 @@ Phase653 found that the full residual was unstable in two-place-slot races and t
 training did not repair that pocket consistently across the already-inspected 2024 and 2025
 periods.
 
-Phase654 freezes the next evaluation before any Phase650H/652/653 aggregate result, row count, or
-coverage for 2026 H1 is inspected. It registers the question, periods, models, comparisons,
-minimum sample, and decision rules. It does not execute the evaluation.
+Phase654 freezes a prospective evaluation before its collection window begins. No complete 2026
+evaluation dataset is assumed to exist. The phase registers the question, periods, models,
+comparisons, minimum sample, and decision rules. It does not execute the evaluation.
 
 ## Freshness boundary
 
-The registered evaluation window is 2026-01-01 through 2026-06-30. Training is fixed to
-2023-01-01 through 2025-12-31.
+The registered evaluation window is 2026-07-20 through 2026-12-31. Training is fixed to
+2023-01-01 through 2025-12-31. Evaluation remains locked until 2027-01-01 even if partial data
+arrives earlier.
 
-The freshness claim is deliberately narrow: no aggregate evaluation of these research models on
-the 2026 H1 window was inspected before registration. It does not claim that no person knows any
-individual 2026 race result.
+The freshness claim applies only to races in the prospective window. It makes no claim about
+races before 2026-07-20.
 
-The 2026 source may not be inventoried until this contract is merged. After the source audit,
+The forward source may not be inventoried until this contract is merged. After collection starts,
 features, model definitions, hyperparameters, comparisons, thresholds, and minimum sample rules
 may not be changed for this evaluation.
+
+Before 2027-01-01, monitoring is limited to schema, dates, canonical identities, missingness, and
+join completeness without model predictions, model metrics, or outcome-conditioned diagnostics.
 
 ## Fixed questions
 
@@ -68,9 +71,9 @@ overall, or when two-place-slot coverage is below either 50 complete races or 30
 
 ## Boundary
 
-This phase does not compute model metrics and does not inspect 2026 source coverage. ROI, payout,
-bet selection, thresholds, and stakes are outside scope. The next phase after merge is a read-only
-2026 source availability and schema audit.
+This phase does not compute model metrics and does not inspect forward-window source coverage.
+ROI, payout, bet selection, thresholds, and stakes are outside scope. The next phase after merge
+is a prospective collection readiness and schema audit.
 
 The JSON contract and its SHA-256 sidecar are committed together. The validator fails if the
 contract bytes, fixed periods, model set, primary comparisons, hyperparameters, sample gates, or
@@ -79,5 +82,5 @@ phase boundary change.
 ## Validation
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/phase654_preregister_2026_h1_validation.py
+PYTHONPATH=src .venv/bin/python scripts/phase654_preregister_2026_forward_validation.py
 ```
