@@ -381,10 +381,16 @@ def run_model_comparison(
     dataset: ComparisonDataset,
     input_audit: InputAudit,
     *,
+    market_feature_names: Sequence[str] = MARKET_FEATURE_COLUMNS,
     c_grid: Sequence[float] = DEFAULT_C_GRID,
     bootstrap_repetitions: int = 2_000,
     random_seed: int = 651,
 ) -> ComparisonResult:
+    if len(market_feature_names) != dataset.market_features.shape[1]:
+        raise ValueError(
+            "market feature names must match the comparison dataset width: "
+            f"names={len(market_feature_names)}, width={dataset.market_features.shape[1]}"
+        )
     years = dataset.years
     train = dataset.subset(years == 2023)
     validation = dataset.subset(years == 2024)
@@ -540,7 +546,9 @@ def run_model_comparison(
         },
         "model_contract": {
             "M0_race_prior": "place slots / active field size",
-            "M1_market": "logistic regression on win odds, place basis odds, popularity",
+            "M1_market": (
+                "logistic regression on " + ", ".join(str(value) for value in market_feature_names)
+            ),
             "M1C_race_constrained_market": (
                 "M1 with per-race probability sum constrained to place slots"
             ),
@@ -552,6 +560,7 @@ def run_model_comparison(
             ),
         },
         "selected_c": selected_c,
+        "market_feature_names": list(market_feature_names),
         "bootstrap_repetitions": bootstrap_repetitions,
         "verdict_evidence": verdict_evidence,
         "roi_or_betting_used_for_selection": False,

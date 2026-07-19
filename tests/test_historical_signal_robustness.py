@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -98,6 +99,22 @@ def test_robustness_writer_emits_only_diagnostic_outputs(tmp_path: Path) -> None
         "phase652_findings.md",
     }
     assert not any("roi" in path.name or "bet" in path.name for path in output_dir.iterdir())
+
+
+def test_robustness_omits_popularity_subgroups_for_two_column_market() -> None:
+    dataset = _synthetic_dataset(years=(2023, 2024, 2025), races_per_year=10)
+    dataset = replace(dataset, market_features=dataset.market_features[:, :2])
+
+    result = run_signal_robustness(
+        dataset,
+        crossfit_folds=2,
+        bootstrap_repetitions=20,
+        subgroup_bootstrap_repetitions=10,
+        minimum_subgroup_rows=10,
+    )
+
+    assert result.summary["market_popularity_subgroups_included"] is False
+    assert not any(row["dimension"] == "market_popularity" for row in result.subgroup_rows)
 
 
 def _synthetic_dataset(
