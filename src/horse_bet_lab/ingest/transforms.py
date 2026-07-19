@@ -71,3 +71,13 @@ def to_bac_race_name(value: str) -> str | None:
     if not cleaned:
         return None
     return cleaned
+
+
+def to_kyi_carried_weight_kg(value: str) -> float | None:
+    normalized = normalize_missing(value)
+    if normalized is None:
+        return None
+    digits = re.findall(r"\d", normalized)
+    if len(digits) < 3:
+        return None
+    return int("".join(digits[:3])) / 10.0

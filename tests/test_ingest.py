@@ -23,6 +23,37 @@ CHA_SAMPLE_LINE_2 = bytes.fromhex(
 )
 
 
+def make_kyi_line(
+    *,
+    race_key: str,
+    horse_number: int,
+    registration_id: str,
+    horse_name: str,
+    jockey_name: str = "小林美駒",
+    carried_weight_block: str = "5304",
+    trainer_name: str = "鈴木慎太郎",
+    trainer_region: str = "美浦",
+    frame_number: int = 1,
+    jockey_code: str = "12345",
+    trainer_code: str = "54321",
+    sex_code: int = 2,
+) -> bytes:
+    payload = bytearray(b" " * 1022)
+    payload[0:8] = race_key.encode("ascii")
+    payload[8:10] = f"{horse_number:02d}".encode("ascii")
+    payload[10:18] = registration_id.encode("ascii")
+    payload[18:54] = horse_name.encode("cp932").ljust(36, b" ")
+    payload[171:183] = jockey_name.encode("cp932").ljust(12, b" ")
+    payload[183:187] = carried_weight_block.encode("ascii").ljust(4, b" ")
+    payload[187:199] = trainer_name.encode("cp932").ljust(12, b" ")
+    payload[199:203] = trainer_region.encode("cp932").ljust(4, b" ")
+    payload[323:324] = str(frame_number).encode("ascii")
+    payload[335:340] = jockey_code.encode("ascii").ljust(5, b" ")
+    payload[340:345] = trainer_code.encode("ascii").ljust(5, b" ")
+    payload[403:404] = str(sex_code).encode("ascii")
+    return bytes(payload)
+
+
 def make_hjc_line(
     *,
     race_key: str,
@@ -178,6 +209,62 @@ def test_ingest_jrdb_directory_parses_oz_basis_odds(tmp_path: Path) -> None:
             ("06251101", 2, 3, 8.7, 2.8),
             ("06251101", 3, 3, 15.2, 4.1),
         ]
+    finally:
+        connection.close()
+
+
+def test_ingest_jrdb_directory_parses_kyi_pre_race_identity_and_card_fields(
+    tmp_path: Path,
+) -> None:
+    raw_dir = tmp_path / "data" / "raw" / "jrdb"
+    raw_dir.mkdir(parents=True)
+    (raw_dir / "KYI250105.txt").write_bytes(
+        make_kyi_line(
+            race_key="06251101",
+            horse_number=2,
+            registration_id="22102642",
+            horse_name="ショウブダッシュ",
+        )
+        + b"\r\n",
+    )
+    duckdb_path = tmp_path / "data" / "artifacts" / "jrdb.duckdb"
+
+    ingest_jrdb_directory(raw_dir=raw_dir, duckdb_path=duckdb_path)
+
+    connection = duckdb.connect(str(duckdb_path))
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                race_key,
+                horse_number,
+                registration_id,
+                horse_name,
+                jockey_name,
+                carried_weight_kg,
+                trainer_name,
+                trainer_region,
+                frame_number,
+                jockey_code,
+                trainer_code,
+                sex_code
+            FROM jrdb_kyi_staging
+            """,
+        ).fetchone()
+        assert row == (
+            "06251101",
+            2,
+            "22102642",
+            "ショウブダッシュ",
+            "小林美駒",
+            53.0,
+            "鈴木慎太郎",
+            "美浦",
+            1,
+            "12345",
+            "54321",
+            2,
+        )
     finally:
         connection.close()
 
