@@ -1,0 +1,160 @@
+{
+  "contract_version": 1,
+  "phase": "Phase654",
+  "research_question": "Does strictly-prior horse history improve place-probability estimation beyond the decision-time market on a not-yet-evaluated 2026 H1 period, and does slot-2-specific training repair the previously unstable small-field pocket?",
+  "freshness": {
+    "claim": "No aggregate Phase650H, Phase652, or Phase653 model evaluation on the 2026 H1 window was inspected before this contract was registered.",
+    "does_not_claim": "This contract does not claim that humans have no knowledge of any individual 2026 race result.",
+    "source_audit_allowed_only_after_contract_merge": true,
+    "model_or_threshold_change_after_source_audit": "forbidden"
+  },
+  "periods": {
+    "training_start": "2023-01-01",
+    "training_end": "2025-12-31",
+    "evaluation_start": "2026-01-01",
+    "evaluation_end": "2026-06-30",
+    "evaluation_label": "2026_H1_fresh_confirmation"
+  },
+  "data_contract": {
+    "history_surface": "Phase650H strictly-prior historical ability surface",
+    "market_surface": "Phase651 decision-time market surface",
+    "target": "Phase651 place-slot-aware is_place",
+    "identity": [
+      "race_key",
+      "horse_number"
+    ],
+    "complete_races_only": true,
+    "reject_duplicate_identity": true,
+    "reject_partial_history_join": true,
+    "reject_target_or_place_slot_mismatch": true,
+    "place_slot_rule": {
+      "field_size_5_to_7": 2,
+      "field_size_8_or_more": 3,
+      "field_size_4_or_less": "unsupported"
+    }
+  },
+  "fixed_models": {
+    "M1C_race_constrained_market": {
+      "feature_scope": "market_only",
+      "training_scope": "all_supported_place_slots",
+      "race_probability_sum_constraint": true
+    },
+    "M5_full_pooled": {
+      "feature_scope": "full_phase652_history_plus_current_context",
+      "training_scope": "all_supported_place_slots",
+      "race_probability_sum_constraint": true
+    },
+    "M5_history_only_pooled": {
+      "feature_scope": "phase652_without_current_context",
+      "training_scope": "all_supported_place_slots",
+      "race_probability_sum_constraint": true
+    },
+    "M5_full_slot2_only": {
+      "feature_scope": "full_phase652_history_plus_current_context",
+      "training_scope": "place_slots_2_only",
+      "race_probability_sum_constraint": true
+    },
+    "M5_history_only_slot2_only": {
+      "feature_scope": "phase652_without_current_context",
+      "training_scope": "place_slots_2_only",
+      "race_probability_sum_constraint": true
+    }
+  },
+  "comparisons": [
+    {
+      "id": "overall_history_only_vs_market",
+      "role": "primary_overall_signal",
+      "subset": "all_complete_supported_races",
+      "baseline": "M1C_race_constrained_market",
+      "candidate": "M5_history_only_pooled"
+    },
+    {
+      "id": "slot2_full_specific_vs_pooled",
+      "role": "primary_slot2_recovery",
+      "subset": "place_slots_2_only",
+      "baseline": "M5_full_pooled",
+      "candidate": "M5_full_slot2_only"
+    },
+    {
+      "id": "slot2_full_specific_vs_market",
+      "role": "primary_slot2_recovery",
+      "subset": "place_slots_2_only",
+      "baseline": "M1C_race_constrained_market",
+      "candidate": "M5_full_slot2_only"
+    },
+    {
+      "id": "overall_full_vs_market",
+      "role": "supporting",
+      "subset": "all_complete_supported_races",
+      "baseline": "M1C_race_constrained_market",
+      "candidate": "M5_full_pooled"
+    },
+    {
+      "id": "slot2_history_only_specific_vs_pooled",
+      "role": "supporting",
+      "subset": "place_slots_2_only",
+      "baseline": "M5_history_only_pooled",
+      "candidate": "M5_history_only_slot2_only"
+    },
+    {
+      "id": "slot2_history_only_specific_vs_market",
+      "role": "supporting",
+      "subset": "place_slots_2_only",
+      "baseline": "M1C_race_constrained_market",
+      "candidate": "M5_history_only_slot2_only"
+    }
+  ],
+  "analysis": {
+    "primary_metric": "mean_binary_log_loss",
+    "paired_unit": "race_key",
+    "bootstrap_repetitions": 2000,
+    "bootstrap_seed": 654,
+    "confidence_level": 0.95,
+    "market_logistic_c": 3.0,
+    "offset_logistic_c": 1.0,
+    "crossfit_folds": 5,
+    "crossfit_group": "race_key",
+    "crossfit_stratified": true,
+    "crossfit_seed": 652,
+    "minimum_complete_races_overall": 500,
+    "minimum_complete_races_place_slots_2": 50,
+    "minimum_rows_place_slots_2": 300,
+    "comparison_success_rule": "candidate_minus_baseline_point_delta_below_zero_and_ci95_high_below_zero",
+    "overall_signal_confirmation": [
+      "overall_history_only_vs_market"
+    ],
+    "slot2_recovery_confirmation": [
+      "slot2_full_specific_vs_pooled",
+      "slot2_full_specific_vs_market"
+    ],
+    "selection_metrics": [
+      "mean_binary_log_loss",
+      "paired_race_bootstrap_log_loss_delta"
+    ],
+    "supporting_metrics": [
+      "brier_score",
+      "calibration_intercept",
+      "calibration_slope",
+      "expected_calibration_error",
+      "race_probability_sum_error",
+      "top_place_slots_capture"
+    ]
+  },
+  "verdicts": {
+    "source_blocked": "FRESH_2026_H1_SOURCE_BLOCKED",
+    "insufficient_sample": "FRESH_2026_H1_INSUFFICIENT_SAMPLE",
+    "slot2_recovery_confirmed": "FRESH_2026_H1_SLOT2_RECOVERY_CONFIRMED",
+    "slot2_recovery_not_confirmed": "FRESH_2026_H1_SLOT2_RECOVERY_NOT_CONFIRMED"
+  },
+  "phase_boundary": {
+    "current_phase_scope": "registration_only",
+    "forbidden_before_contract_merge": [
+      "inspect_2026_source_rows_or_coverage",
+      "compute_2026_model_metrics",
+      "change_features_models_hyperparameters_or_success_thresholds_after_seeing_2026",
+      "optimize_roi_payout_bet_selection_or_stakes"
+    ],
+    "next_phase_after_merge": "read_only_2026_source_availability_and_schema_audit",
+    "roi_or_betting_used": false
+  }
+}
