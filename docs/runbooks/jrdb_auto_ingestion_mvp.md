@@ -28,6 +28,7 @@
    - `JRDB_AUTO_INGESTION_PASSWORD`
 2. local auth config
    - 例: `.local/jrdb_auto_ingestion_auth.toml`
+   - `configs/jrdb_auto_ingestion_auth.example` をコピーし、必ず `chmod 600` にする
 
 repo には入れない。
 
