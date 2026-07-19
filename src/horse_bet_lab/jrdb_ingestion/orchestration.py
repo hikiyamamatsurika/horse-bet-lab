@@ -57,9 +57,7 @@ def run_jrdb_auto_ingestion_job(
             dedupe_key=dedupe_key,
             ready_dir=Path(str(payload["ready_dir"])) if payload.get("ready_dir") else None,
             raw_target_dir=(
-                Path(str(payload["raw_target_dir"]))
-                if payload.get("raw_target_dir")
-                else None
+                Path(str(payload["raw_target_dir"])) if payload.get("raw_target_dir") else None
             ),
             report_path=processed_report_path,
         )
@@ -80,11 +78,14 @@ def run_jrdb_auto_ingestion_job(
             )
         )
         extracted_archives = tuple(
-            _record_extract(events, extracted=extract_archive(
-                archive.archive_path,
-                destination_dir=staging_extract_dir / archive.archive_name,
-                archive_kind=_lookup_archive_kind(trigger, archive.archive_name),
-            ))
+            _record_extract(
+                events,
+                extracted=extract_archive(
+                    archive.archive_path,
+                    destination_dir=staging_extract_dir / archive.archive_name,
+                    archive_kind=_lookup_archive_kind(trigger, archive.archive_name),
+                ),
+            )
             for archive in downloaded_archives
         )
 
@@ -106,6 +107,16 @@ def run_jrdb_auto_ingestion_job(
                 "pre_race_output_dir": (
                     str(handoff_result.pre_race_output_dir)
                     if handoff_result.pre_race_output_dir is not None
+                    else None
+                ),
+                "contract_snapshot_path": (
+                    str(handoff_result.contract_snapshot_path)
+                    if handoff_result.contract_snapshot_path is not None
+                    else None
+                ),
+                "collection_monitor_output_dir": (
+                    str(handoff_result.collection_monitor_output_dir)
+                    if handoff_result.collection_monitor_output_dir is not None
                     else None
                 ),
             }
@@ -235,6 +246,16 @@ def build_report_payload(
                 "pre_race_output_dir": (
                     str(handoff_result.pre_race_output_dir)
                     if handoff_result.pre_race_output_dir is not None
+                    else None
+                ),
+                "contract_snapshot_path": (
+                    str(handoff_result.contract_snapshot_path)
+                    if handoff_result.contract_snapshot_path is not None
+                    else None
+                ),
+                "collection_monitor_output_dir": (
+                    str(handoff_result.collection_monitor_output_dir)
+                    if handoff_result.collection_monitor_output_dir is not None
                     else None
                 ),
                 "ingested_file_count": (

@@ -9,12 +9,14 @@ HANDOFF_MODE_NONE = "none"
 HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE = "forward_pre_race_contract_like_csv_v1"
 HANDOFF_MODE_FORWARD_PRE_RACE_OZ = "forward_pre_race_oz_v1"
 HANDOFF_MODE_FORWARD_PRE_RACE_TYB_OZ = "forward_pre_race_tyb_oz_v1"
+HANDOFF_MODE_FORWARD_COLLECTION_TYB_OZ = "forward_collection_tyb_oz_v1"
 SUPPORTED_HANDOFF_MODES = frozenset(
     {
         HANDOFF_MODE_NONE,
         HANDOFF_MODE_FORWARD_PRE_RACE_CONTRACT_LIKE,
         HANDOFF_MODE_FORWARD_PRE_RACE_OZ,
         HANDOFF_MODE_FORWARD_PRE_RACE_TYB_OZ,
+        HANDOFF_MODE_FORWARD_COLLECTION_TYB_OZ,
     }
 )
 
@@ -43,11 +45,22 @@ class JRDBForwardPreRaceHandoffConfig:
 
 
 @dataclass(frozen=True)
+class JRDBForwardCollectionHandoffConfig:
+    unit_id: str
+    input_source_name: str
+    input_source_url: str
+    input_source_timestamp: str
+    odds_observation_timestamp: str
+    carrier_identity: str
+
+
+@dataclass(frozen=True)
 class JRDBHandoffConfig:
     mode: str
     ingest_ready_files: bool
     duckdb_path: Path | None = None
     pre_race: JRDBForwardPreRaceHandoffConfig | None = None
+    collection: JRDBForwardCollectionHandoffConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -60,8 +73,7 @@ class JRDBAutoIngestionTrigger:
 
 
 class EmailTriggerWatcher(Protocol):
-    def poll(self) -> tuple[JRDBAutoIngestionTrigger, ...]:
-        ...
+    def poll(self) -> tuple[JRDBAutoIngestionTrigger, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -125,6 +137,20 @@ def load_trigger_manifest(path: Path) -> JRDBAutoIngestionTrigger:
         if pre_race_payload is not None
         else None
     )
+    collection = (
+        JRDBForwardCollectionHandoffConfig(
+            unit_id=str(handoff_payload["unit_id"]),
+            input_source_name=str(handoff_payload["input_source_name"]),
+            input_source_url=str(handoff_payload["input_source_url"]),
+            input_source_timestamp=str(handoff_payload["input_source_timestamp"]),
+            odds_observation_timestamp=str(handoff_payload["odds_observation_timestamp"]),
+            carrier_identity=str(
+                handoff_payload.get("carrier_identity", "place_forward_live_snapshot_v1")
+            ),
+        )
+        if mode == HANDOFF_MODE_FORWARD_COLLECTION_TYB_OZ
+        else None
+    )
     duckdb_path = (
         Path(str(handoff_payload["duckdb_path"]))
         if handoff_payload.get("duckdb_path") is not None
@@ -138,9 +164,15 @@ def load_trigger_manifest(path: Path) -> JRDBAutoIngestionTrigger:
         archives=archives,
         handoff=JRDBHandoffConfig(
             mode=mode,
-            ingest_ready_files=bool(handoff_payload.get("ingest_ready_files", True)),
+            ingest_ready_files=bool(
+                handoff_payload.get(
+                    "ingest_ready_files",
+                    mode != HANDOFF_MODE_FORWARD_COLLECTION_TYB_OZ,
+                )
+            ),
             duckdb_path=duckdb_path,
             pre_race=pre_race,
+            collection=collection,
         ),
     )
 
