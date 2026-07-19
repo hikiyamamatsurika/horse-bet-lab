@@ -1,0 +1,5 @@
+# Copy this file to .local/jrdb_auto_ingestion_auth.toml.
+# Replace both placeholders, then run:
+# chmod 600 .local/jrdb_auto_ingestion_auth.toml
+username=replace_with_jrdb_username
+password=replace_with_jrdb_password

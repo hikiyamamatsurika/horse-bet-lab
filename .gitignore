@@ -10,6 +10,7 @@ data/raw/jrdb/*
 !data/raw/jrdb/.gitkeep
 data/local/*
 !data/local/.gitkeep
+.local/
 data/staging/*
 !data/staging/.gitkeep
 data/artifacts/*

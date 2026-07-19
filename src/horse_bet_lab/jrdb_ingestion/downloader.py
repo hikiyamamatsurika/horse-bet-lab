@@ -3,8 +3,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import stat
 from dataclasses import dataclass
 from pathlib import Path
+from typing import BinaryIO
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -43,6 +45,12 @@ def load_download_auth(
         return None
     if not auth_config_path.exists():
         raise FileNotFoundError(f"JRDB auth config does not exist: {auth_config_path}")
+    mode = stat.S_IMODE(auth_config_path.stat().st_mode)
+    if mode & 0o077:
+        raise PermissionError(
+            "JRDB auth config must not be readable or writable by group/others; "
+            f"run chmod 600 {auth_config_path}"
+        )
 
     payload = {
         key.strip(): value.strip()
@@ -123,7 +131,7 @@ def _copy_source_to_file(
         return _stream_copy(response, destination_path)
 
 
-def _stream_copy(readable, destination_path: Path) -> tuple[int, str]:
+def _stream_copy(readable: BinaryIO, destination_path: Path) -> tuple[int, str]:
     digest = hashlib.sha256()
     total = 0
     with destination_path.open("wb") as file:
